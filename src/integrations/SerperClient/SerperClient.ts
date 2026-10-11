@@ -1,7 +1,8 @@
 import axios from "axios";
-import { SerperResponseSchema, WebSearchResult } from "./serperSchemas";
+import { SerperResponseSchema } from "./serperSchemas";
+import { WebSearchResult } from "../../types";
 
-interface WebSearchClient {
+export interface WebSearchClient {
 	search(query: string): Promise<WebSearchResult[]>;
 }
 

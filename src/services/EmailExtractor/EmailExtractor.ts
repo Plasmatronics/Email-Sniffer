@@ -14,7 +14,6 @@ export const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
 export class EmailExtractor {
 	constructor(
-		private readonly emailExtractionStrategy: EmailExtractionStrategy,
 		private readonly config: EmailExtractionConfig = DEFAULT_EMAIL_EXTRACTION_CONFIG,
 	) {}
 
@@ -23,7 +22,7 @@ export class EmailExtractor {
 		if (parsable.length > max) {
 			const delta = parsable.length - max;
 			console.warn(
-				`Did not process the last ${delta} of this string because it surpassed the maxContentLength of ${max}`,
+				`Did not process the last ${delta} of this text because it surpassed the maxContentLength of ${max}`,
 			);
 
 			return parsable.slice(0, max);
@@ -32,10 +31,10 @@ export class EmailExtractor {
 		return parsable;
 	}
 
-	extractEmails(parsable: string): string[] {
-		const clampedParsable = this.clampSize(parsable);
-		const emails = this.emailExtractionStrategy.extractEmails(clampedParsable);
-		const uniqueEmails = [...new Set(emails)];
+	extractEmails(text: string): string[] {
+		const clampedText = this.clampSize(text);
+		const emailMatches = clampedText.match(emailRegex) ?? [];
+		const uniqueEmails = [...new Set(emailMatches)];
 		return uniqueEmails;
 	}
 }

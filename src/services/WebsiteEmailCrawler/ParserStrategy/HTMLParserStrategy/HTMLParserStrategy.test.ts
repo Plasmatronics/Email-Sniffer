@@ -31,7 +31,7 @@ describe("HTMLParserStrategy", () => {
 
 		const result = await strategy.parse(content);
 
-		expect(result.text.trim()).toBe("Contact usjane@example.com");
+		expect(result.text.trim()).toBe("Contact us\n\njane@example.com");
 	});
 
 	test("excludes non-visible element content from the text", async () => {
@@ -94,7 +94,7 @@ describe("HTMLParserStrategy", () => {
 		const result = await strategy.parse(content);
 
 		expect(result).toEqual({
-			text: "Contact jane@example.comContact",
+			text: "\nContact jane@example.com\nContact\n\n",
 			links: ["/contact"],
 		});
 	});

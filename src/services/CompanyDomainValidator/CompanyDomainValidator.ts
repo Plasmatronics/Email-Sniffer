@@ -6,6 +6,7 @@ import {
 	VerifiedDomainData,
 } from "./CompanyDomainValidator.types";
 import { TRUSTED_PAGE_PATHS } from "./trustedPagePaths";
+import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
 
 const DEFAULT_DOMAIN_VALIDATOR_CONFIG = {
 	substringMatchPassThreshold: 50,
@@ -76,25 +77,21 @@ export class CompanyDomainValidator {
 	}
 
 	private getUrlConfidenceScore(url: string): number {
-		let pathName: string;
 		try {
-			const { pathname: parsedPathName } = new URL(url);
-			pathName = parsedPathName;
-		} catch (err) {
-			console.warn(
-				`${err instanceof Error ? err.message : `${url} is not a valid domain name.`}`,
+			const keywords = getKeywordsFromUrl(url);
+			const urlConfidenceScore = getUrlWeightFromKeywords(
+				keywords,
+				TRUSTED_PAGE_PATHS,
 			);
+
+			return Math.max(FOUND_ON_COMPANY_PAGE_MIN_SCORE, urlConfidenceScore);
+		} catch (err: unknown) {
+			console.warn(
+				`Failed to get URL confidence score for ${url}: ${err instanceof Error ? err.message : "An unknown error occurred."}`,
+			);
+
 			return 0;
 		}
-
-		const segments = pathName.toLowerCase().split("/").filter(Boolean);
-
-		return Math.max(
-			FOUND_ON_COMPANY_PAGE_MIN_SCORE,
-			...TRUSTED_PAGE_PATHS.filter(({ path }) => segments.includes(path)).map(
-				({ weight }) => weight,
-			),
-		);
 	}
 
 	private validateSubstringMatch(confidence: number): number {

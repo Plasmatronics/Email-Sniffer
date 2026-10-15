@@ -1,3 +1,5 @@
+import { findEmailMatches } from "../../utils";
+
 export interface EmailExtractionStrategy {
 	extractEmails(parsable: string): string[];
 }
@@ -9,8 +11,6 @@ export interface EmailExtractionConfig {
 const DEFAULT_EMAIL_EXTRACTION_CONFIG: EmailExtractionConfig = {
 	maxContentLength: 1_000_000,
 };
-
-export const emailRegex = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
 
 export class EmailExtractor {
 	constructor(
@@ -33,7 +33,7 @@ export class EmailExtractor {
 
 	extractEmails(text: string): string[] {
 		const clampedText = this.clampSize(text);
-		const emailMatches = clampedText.match(emailRegex) ?? [];
+		const emailMatches = findEmailMatches(clampedText);
 		const uniqueEmails = [...new Set(emailMatches)];
 		return uniqueEmails;
 	}

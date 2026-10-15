@@ -103,7 +103,7 @@ export class WebsiteEmailCrawler {
 				text = strategyRes.text;
 			} catch (err: unknown) {
 				console.warn(
-					`${err instanceof Error ? err.message : `An unknown error has occurred whilst parsing the content for ${url}`}`,
+					`${err instanceof Error ? err.message : `An unknown error has occurred whilst parsing the content for ${poppedUrl}`}`,
 				);
 
 				continue;

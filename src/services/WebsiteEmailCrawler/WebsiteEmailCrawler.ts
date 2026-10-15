@@ -73,7 +73,7 @@ export class WebsiteEmailCrawler {
 
 		while (maxHeap.size) {
 			const [poppedUrl] = maxHeap.pop()!;
-			if (numProcessed >= maxPages) continue;
+			if (numProcessed === maxPages) break;
 
 			let res: AxiosResponse;
 			try {

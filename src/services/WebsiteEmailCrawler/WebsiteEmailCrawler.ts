@@ -127,7 +127,7 @@ export class WebsiteEmailCrawler {
 					weight = getUrlWeightFromKeywords(urlKeywords, PAGE_WEIGHTS);
 				} catch (err: unknown) {
 					console.warn(
-						`${err instanceof Error ? err.message : `An unknown error has occurred whilst retrieving url weight for ${url}`}`,
+						`Failed to get URL weight for ${nextLink}: ${err instanceof Error ? err.message : "An unknown error occurred."}`,
 					);
 
 					continue;

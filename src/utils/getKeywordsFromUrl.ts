@@ -6,10 +6,9 @@ export const getKeywordsFromUrl = (baseUrl: string): string[] => {
 		const { pathname: parsedPathName } = new URL(baseUrl);
 		pathName = parsedPathName;
 	} catch (err) {
-		throw new Error(
-			`${err instanceof Error ? err.message : `${baseUrl} is not a valid domain name.`}`,
-			{ cause: err },
-		);
+		throw new Error(`Failed to parse URL "${baseUrl}" to extract keywords.`, {
+			cause: err,
+		});
 	}
 
 	const allKeywords: string[] = [];

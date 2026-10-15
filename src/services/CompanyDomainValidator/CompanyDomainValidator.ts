@@ -87,7 +87,7 @@ export class CompanyDomainValidator {
 			return Math.max(FOUND_ON_COMPANY_PAGE_MIN_SCORE, urlConfidenceScore);
 		} catch (err: unknown) {
 			console.warn(
-				`${err instanceof Error ? err.message : `An unknown error has occurred whilst retrieving confidence score for ${url}`}`,
+				`Failed to get URL confidence score for ${url}: ${err instanceof Error ? err.message : "An unknown error occurred."}`,
 			);
 
 			return 0;

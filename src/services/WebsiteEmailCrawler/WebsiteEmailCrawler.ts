@@ -6,11 +6,7 @@ import axios, {
 import { EmailExtractor } from "../EmailExtractor";
 import { ParserStrategy } from "./ParserStrategy";
 import { MaxHeap } from "mnemonist";
-import {
-	getKeywordsFromUrl,
-	getUrlWeightFromKeywords,
-	findEmailMatches,
-} from "../../utils";
+import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
 import { PAGE_WEIGHTS } from "./pageWeights";
 
 const MAX_ALLOWED_PAGES = 20;
@@ -169,7 +165,8 @@ export class WebsiteEmailCrawler {
 					// Keep the original recipients when percent encoding is malformed.
 				}
 
-				for (const email of findEmailMatches(recipients)) emails.add(email);
+				for (const email of this.emailExtractor.extractEmails(recipients))
+					emails.add(email);
 				continue;
 			}
 

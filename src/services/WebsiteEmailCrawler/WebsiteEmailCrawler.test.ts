@@ -1,6 +1,8 @@
 import { AxiosError, AxiosHeaders, type AxiosResponse } from "axios";
 import { beforeEach, describe, expect, test, vi } from "vitest";
+import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
+import { TextChunker } from "../TextChunker";
 import type { ParserStrategy } from "./ParserStrategy";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
 
@@ -40,10 +42,14 @@ describe("WebsiteEmailCrawler", () => {
 	const strategy: ParserStrategy = { supports, parse };
 
 	function createCrawler(maxPages = 5, config = {}) {
-		return new WebsiteEmailCrawler([strategy], new EmailExtractor(), {
-			maxPages,
-			...config,
-		});
+		return new WebsiteEmailCrawler(
+			[strategy],
+			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			{
+				maxPages,
+				...config,
+			},
+		);
 	}
 
 	beforeEach(() => {

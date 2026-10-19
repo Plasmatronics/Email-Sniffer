@@ -3,3 +3,6 @@ export * from "./CompanyDomainValidator";
 export * from "./WebSearcher";
 export * from "./EmailExtractor";
 export * from "./WebsiteEmailCrawler";
+export * from "./DocumentClamper";
+export * from "./TextChunker";
+export * from "./EmailPatternInferrer";

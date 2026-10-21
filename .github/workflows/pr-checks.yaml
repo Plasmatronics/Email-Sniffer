@@ -235,6 +235,7 @@ jobs:
                     content: prompt
                   }
                 ],
+                stream: false,
                 temperature: 0.1,
                 max_completion_tokens: 20000,
                 reasoning: {
@@ -255,7 +256,30 @@ jobs:
 
             const data = await response.json();
 
+            if (data.error) {
+              core.setFailed(
+                `OpenRouter error: ${data.error.message ?? JSON.stringify(data.error)}`
+              );
+              return;
+            }
+
             const candidate = data.choices?.[0];
+
+            if (!candidate) {
+              core.debug(`Unexpected OpenRouter response: ${JSON.stringify(data)}`);
+              core.setFailed(
+                `OpenRouter returned no choices. Response keys: ${Object.keys(data).join(", ") || "none"}`
+              );
+              return;
+            }
+
+            if (candidate.error) {
+              core.setFailed(
+                `OpenRouter generation error: ${candidate.error.message ?? JSON.stringify(candidate.error)}`
+              );
+              return;
+            }
+
             const finishReason =
               candidate?.finish_reason ?? "UNKNOWN";
 
@@ -622,6 +646,7 @@ jobs:
                     content: prompt
                   }
                 ],
+                stream: false,
                 temperature: 0.1,
                 max_completion_tokens: 10000,
                 reasoning: {
@@ -642,7 +667,29 @@ jobs:
 
             const data = await response.json();
 
+            if (data.error) {
+              core.setFailed(
+                `OpenRouter error: ${data.error.message ?? JSON.stringify(data.error)}`
+              );
+              return;
+            }
+
             const candidate = data.choices?.[0];
+
+            if (!candidate) {
+              core.debug(`Unexpected OpenRouter response: ${JSON.stringify(data)}`);
+              core.setFailed(
+                `OpenRouter returned no choices. Response keys: ${Object.keys(data).join(", ") || "none"}`
+              );
+              return;
+            }
+
+            if (candidate.error) {
+              core.setFailed(
+                `OpenRouter generation error: ${candidate.error.message ?? JSON.stringify(candidate.error)}`
+              );
+              return;
+            }
 
             const finishReason =
               candidate?.finish_reason ?? "UNKNOWN";

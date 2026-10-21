@@ -99,13 +99,6 @@ jobs:
               return;
             }
 
-            if (!apiEndpoint.includes("{model}")) {
-              core.setFailed(
-                "AI_API_ENDPOINT must contain a {model} placeholder."
-              );
-              return;
-            }
-
             const requestUrl = apiEndpoint.replace(
               "{model}",
               encodeURIComponent(model)
@@ -400,13 +393,6 @@ jobs:
             if (!model) {
               core.setFailed(
                 "AI_REVIEW_MODEL is not configured in GitHub Repo Variables."
-              );
-              return;
-            }
-
-            if (!apiEndpoint.includes("{model}")) {
-              core.setFailed(
-                "AI_API_ENDPOINT must contain a {model} placeholder."
               );
               return;
             }

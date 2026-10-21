@@ -190,7 +190,7 @@ jobs:
 
             Respond in Markdown using this structure:
 
-            ## AI review using ${model}
+            ## AI review
 
             ### Summary
             Briefly explain what the PR changes.

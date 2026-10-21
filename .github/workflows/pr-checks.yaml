@@ -72,7 +72,7 @@ jobs:
     timeout-minutes: 5
 
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
       AI_API_ENDPOINT: ${{ vars.AI_API_ENDPOINT }}
 
@@ -81,13 +81,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const apiKey = process.env.GEMINI_API_KEY;
+            const apiKey = process.env.OPENROUTER_API_KEY;
             const model = process.env.AI_REVIEW_MODEL;
             const apiEndpoint = process.env.AI_API_ENDPOINT;
 
             if (!apiKey) {
               core.setFailed(
-                "GEMINI_API_KEY is not configured in GitHub Repo Secrets."
+                "OPENROUTER_API_KEY is not configured in GitHub Repo Secrets."
               );
               return;
             }
@@ -224,22 +224,21 @@ jobs:
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
+                "Authorization": `Bearer ${apiKey}`
               },
               signal: AbortSignal.timeout(120_000),
               body: JSON.stringify({
-                contents: [
+                model,
+                messages: [
                   {
                     role: "user",
-                    parts: [{ text: prompt }]
+                    content: prompt
                   }
                 ],
-                generationConfig: {
-                  temperature: 0.1,
-                  maxOutputTokens: 20000,
-                  thinkingConfig: {
-                    thinkingBudget: 5000
-                  }
+                temperature: 0.1,
+                max_completion_tokens: 20000,
+                reasoning: {
+                  max_tokens: 5000
                 }
               })
             });
@@ -256,21 +255,17 @@ jobs:
 
             const data = await response.json();
 
-            const candidate = data.candidates?.[0];
+            const candidate = data.choices?.[0];
             const finishReason =
-              candidate?.finishReason ?? "UNKNOWN";
+              candidate?.finish_reason ?? "UNKNOWN";
 
-            const review = candidate?.content?.parts
-              ?.filter(part => typeof part.text === "string")
-              .map(part => part.text)
-              .join("")
-              .trim();
+            const review = candidate?.message?.content?.trim();
 
-            core.info(`Gemini finish reason: ${finishReason}`);
+            core.info(`OpenRouter finish reason: ${finishReason}`);
 
             core.info(
-              `Gemini token usage: ${JSON.stringify(
-                data.usageMetadata ?? {}
+              `OpenRouter token usage: ${JSON.stringify(
+                data.usage ?? {}
               )}`
             );
 
@@ -281,7 +276,7 @@ jobs:
               return;
             }
 
-            if (finishReason !== "STOP") {
+            if (finishReason !== "stop") {
               core.setFailed(
                 `AI returned an incomplete review. Finish reason: ${finishReason}`
               );
@@ -357,7 +352,7 @@ jobs:
     timeout-minutes: 5
 
     env:
-      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
       AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
       AI_API_ENDPOINT: ${{ vars.AI_API_ENDPOINT }}
 
@@ -366,13 +361,13 @@ jobs:
         uses: actions/github-script@v7
         with:
           script: |
-            const apiKey = process.env.GEMINI_API_KEY;
+            const apiKey = process.env.OPENROUTER_API_KEY;
             const model = process.env.AI_REVIEW_MODEL;
             const apiEndpoint = process.env.AI_API_ENDPOINT;
 
             if (!apiKey) {
               core.setFailed(
-                "GEMINI_API_KEY is not configured in GitHub Repo Secrets."
+                "OPENROUTER_API_KEY is not configured in GitHub Repo Secrets."
               );
               return;
             }
@@ -432,7 +427,7 @@ jobs:
                 pull_number: pullNumber
               });
 
-            // Retrieve the current PR diff so Gemini answers against
+            // Retrieve the current PR diff so the AI answers against
             // the latest version of the code.
             const files = await github.paginate(
               github.rest.pulls.listFiles,
@@ -484,7 +479,7 @@ jobs:
               comment.body?.includes(reviewMarker)
             );
 
-            // Give Gemini some recent discussion context without
+            // Give the AI some recent discussion context without
             // allowing an enormous PR conversation to consume the prompt.
             const MAX_CONVERSATION_COMMENTS = 10;
             const MAX_COMMENT_LENGTH = 5_000;
@@ -616,26 +611,21 @@ jobs:
               method: "POST",
               headers: {
                 "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
+                "Authorization": `Bearer ${apiKey}`
               },
               signal: AbortSignal.timeout(120_000),
               body: JSON.stringify({
-                contents: [
+                model,
+                messages: [
                   {
                     role: "user",
-                    parts: [
-                      {
-                        text: prompt
-                      }
-                    ]
+                    content: prompt
                   }
                 ],
-                generationConfig: {
-                  temperature: 0.1,
-                  maxOutputTokens: 10000,
-                  thinkingConfig: {
-                    thinkingBudget: 5000
-                  }
+                temperature: 0.1,
+                max_completion_tokens: 10000,
+                reasoning: {
+                  max_tokens: 5000
                 }
               })
             });
@@ -652,27 +642,20 @@ jobs:
 
             const data = await response.json();
 
-            const candidate = data.candidates?.[0];
+            const candidate = data.choices?.[0];
 
             const finishReason =
-              candidate?.finishReason ?? "UNKNOWN";
+              candidate?.finish_reason ?? "UNKNOWN";
 
-            const answer = candidate?.content?.parts
-              ?.filter(
-                part =>
-                  typeof part.text === "string"
-              )
-              .map(part => part.text)
-              .join("")
-              .trim();
+            const answer = candidate?.message?.content?.trim();
 
             core.info(
-              `Gemini finish reason: ${finishReason}`
+              `OpenRouter finish reason: ${finishReason}`
             );
 
             core.info(
-              `Gemini token usage: ${JSON.stringify(
-                data.usageMetadata ?? {}
+              `OpenRouter token usage: ${JSON.stringify(
+                data.usage ?? {}
               )}`
             );
 
@@ -683,7 +666,7 @@ jobs:
               return;
             }
 
-            if (finishReason !== "STOP") {
+            if (finishReason !== "stop") {
               core.setFailed(
                 `AI returned an incomplete response. Finish reason: ${finishReason}`
               );

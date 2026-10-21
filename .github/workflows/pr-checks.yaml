@@ -233,6 +233,11 @@ jobs:
                 "{model}",
                 encodeURIComponent(provider.model)
               );
+              const thinkingConfig = provider.model.startsWith("gemini-2.5")
+                ? { thinkingBudget: -1 }
+                : provider.model.startsWith("gemini-3")
+                  ? { thinkingLevel: "high" }
+                  : undefined;
 
               core.info(
                 `${provider.label} AI attempt using ${provider.model}.`
@@ -254,9 +259,7 @@ jobs:
                   ],
                   generationConfig: {
                     maxOutputTokens: 20000,
-                    thinkingConfig: {
-                      thinkingLevel: "high"
-                    }
+                    ...(thinkingConfig && { thinkingConfig })
                   }
                 })
               });
@@ -667,6 +670,11 @@ jobs:
                 "{model}",
                 encodeURIComponent(provider.model)
               );
+              const thinkingConfig = provider.model.startsWith("gemini-2.5")
+                ? { thinkingBudget: -1 }
+                : provider.model.startsWith("gemini-3")
+                  ? { thinkingLevel: "high" }
+                  : undefined;
 
               core.info(
                 `${provider.label} AI attempt using ${provider.model}.`
@@ -688,9 +696,7 @@ jobs:
                   ],
                   generationConfig: {
                     maxOutputTokens: 10000,
-                    thinkingConfig: {
-                      thinkingLevel: "high"
-                    }
+                    ...(thinkingConfig && { thinkingConfig })
                   }
                 })
               });

@@ -75,6 +75,8 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
       AI_API_ENDPOINT: ${{ vars.AI_API_ENDPOINT }}
+      BACKUP_AI_REVIEW_MODEL: ${{ vars.BACKUP_AI_REVIEW_MODEL }}
+      BACKUP_AI_API_ENDPOINT: ${{ vars.BACKUP_AI_API_ENDPOINT }}
 
     steps:
       - name: Conduct AI PR Review
@@ -82,8 +84,18 @@ jobs:
         with:
           script: |
             const apiKey = process.env.GEMINI_API_KEY;
-            const model = process.env.AI_REVIEW_MODEL;
-            const apiEndpoint = process.env.AI_API_ENDPOINT;
+            const providers = [
+              {
+                label: "Primary",
+                model: process.env.AI_REVIEW_MODEL,
+                apiEndpoint: process.env.AI_API_ENDPOINT
+              },
+              {
+                label: "Backup",
+                model: process.env.BACKUP_AI_REVIEW_MODEL,
+                apiEndpoint: process.env.BACKUP_AI_API_ENDPOINT
+              }
+            ];
 
             if (!apiKey) {
               core.setFailed(
@@ -92,23 +104,14 @@ jobs:
               return;
             }
 
-            if (!model) {
-              core.setFailed(
-                "AI_REVIEW_MODEL is not configured in GitHub Repo Variables."
-              );
-              return;
-            }
+            for (const provider of providers) {
+              if (!provider.model || !provider.apiEndpoint) {
+                core.setFailed(
+                  `${provider.label} AI model and endpoint are not configured in GitHub Repo Variables.`
+                );
+                return;
+              }
 
-            const requestUrl = apiEndpoint.replace(
-              "{model}",
-              encodeURIComponent(model)
-            );
-
-            if (!apiEndpoint) {
-              core.setFailed(
-                "AI_API_ENDPOINT is not configured in GitHub Repo Variables."
-              );
-              return;
             }
 
             const owner = context.repo.owner;
@@ -225,81 +228,107 @@ jobs:
             ${diff}
             `;
 
-            const response = await fetch(requestUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
-              },
-              signal: AbortSignal.timeout(120_000),
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: "user",
-                    parts: [{ text: prompt }]
+            const requestReview = async provider => {
+              const requestUrl = provider.apiEndpoint.replace(
+                "{model}",
+                encodeURIComponent(provider.model)
+              );
+
+              core.info(
+                `${provider.label} AI attempt using ${provider.model}.`
+              );
+
+              const response = await fetch(requestUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey
+                },
+                signal: AbortSignal.timeout(120_000),
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      role: "user",
+                      parts: [{ text: prompt }]
+                    }
+                  ],
+                  generationConfig: {
+                    maxOutputTokens: 20000,
+                    thinkingConfig: {
+                      thinkingLevel: "high"
+                    }
                   }
-                ],
-                generationConfig: {
-                  maxOutputTokens: 20000,
-                  thinkingConfig: {
-                    thinkingLevel: "high"
-                  }
-                }
-              })
-            });
+                })
+              });
 
-            if (!response.ok) {
-              const errorBody = await response.text();
+              if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(
+                  `API returned ${response.status}: ${errorBody}`
+                );
+              }
 
-              core.setFailed(
-                `AI API returned ${response.status}: ${errorBody}`
+              const data = await response.json();
+              const candidate = data.candidates?.[0];
+
+              if (!candidate) {
+                core.debug(
+                  `Unexpected Gemini response: ${JSON.stringify(data)}`
+                );
+                throw new Error(
+                  `Gemini returned no candidates. Response keys: ${Object.keys(data).join(", ") || "none"}`
+                );
+              }
+
+              const finishReason = candidate.finishReason ?? "UNKNOWN";
+              const review = candidate.content?.parts
+                ?.filter(part => typeof part.text === "string")
+                .map(part => part.text)
+                .join("")
+                .trim();
+
+              core.info(
+                `${provider.label} Gemini finish reason: ${finishReason}`
+              );
+              core.info(
+                `${provider.label} Gemini token usage: ${JSON.stringify(data.usageMetadata ?? {})}`
               );
 
-              return;
-            }
+              if (!review) {
+                throw new Error(
+                  `AI returned an empty review. Finish reason: ${finishReason}`
+                );
+              }
 
-            const data = await response.json();
+              if (finishReason !== "STOP") {
+                throw new Error(
+                  `AI returned an incomplete review. Finish reason: ${finishReason}`
+                );
+              }
 
-            const candidate = data.candidates?.[0];
+              return { review, model: provider.model };
+            };
 
-            if (!candidate) {
-              core.debug(`Unexpected Gemini response: ${JSON.stringify(data)}`);
-              core.setFailed(
-                `Gemini returned no candidates. Response keys: ${Object.keys(data).join(", ") || "none"}`
+            let result;
+
+            try {
+              result = await requestReview(providers[0]);
+            } catch (primaryError) {
+              core.warning(
+                `Primary AI attempt failed: ${primaryError.message}. Trying backup.`
               );
-              return;
+
+              try {
+                result = await requestReview(providers[1]);
+              } catch (backupError) {
+                core.setFailed(
+                  `Both AI attempts failed. Primary: ${primaryError.message}. Backup: ${backupError.message}`
+                );
+                return;
+              }
             }
 
-            const finishReason =
-              candidate.finishReason ?? "UNKNOWN";
-
-            const review = candidate.content?.parts
-              ?.filter(part => typeof part.text === "string")
-              .map(part => part.text)
-              .join("")
-              .trim();
-
-            core.info(`Gemini finish reason: ${finishReason}`);
-
-            core.info(
-              `Gemini token usage: ${JSON.stringify(
-                data.usageMetadata ?? {}
-              )}`
-            );
-
-            if (!review) {
-              core.setFailed(
-                `AI returned an empty review. Finish reason: ${finishReason}`
-              );
-              return;
-            }
-
-            if (finishReason !== "STOP") {
-              core.setFailed(
-                `AI returned an incomplete review. Finish reason: ${finishReason}`
-              );
-              return;
-            }
+            const { review, model } = result;
 
             const marker = "<!-- custom-ai-pr-review -->";
 
@@ -373,6 +402,8 @@ jobs:
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       AI_REVIEW_MODEL: ${{ vars.AI_REVIEW_MODEL }}
       AI_API_ENDPOINT: ${{ vars.AI_API_ENDPOINT }}
+      BACKUP_AI_REVIEW_MODEL: ${{ vars.BACKUP_AI_REVIEW_MODEL }}
+      BACKUP_AI_API_ENDPOINT: ${{ vars.BACKUP_AI_API_ENDPOINT }}
 
     steps:
       - name: Respond to AI Review Comment
@@ -380,8 +411,18 @@ jobs:
         with:
           script: |
             const apiKey = process.env.GEMINI_API_KEY;
-            const model = process.env.AI_REVIEW_MODEL;
-            const apiEndpoint = process.env.AI_API_ENDPOINT;
+            const providers = [
+              {
+                label: "Primary",
+                model: process.env.AI_REVIEW_MODEL,
+                apiEndpoint: process.env.AI_API_ENDPOINT
+              },
+              {
+                label: "Backup",
+                model: process.env.BACKUP_AI_REVIEW_MODEL,
+                apiEndpoint: process.env.BACKUP_AI_API_ENDPOINT
+              }
+            ];
 
             if (!apiKey) {
               core.setFailed(
@@ -390,23 +431,14 @@ jobs:
               return;
             }
 
-            if (!model) {
-              core.setFailed(
-                "AI_REVIEW_MODEL is not configured in GitHub Repo Variables."
-              );
-              return;
-            }
+            for (const provider of providers) {
+              if (!provider.model || !provider.apiEndpoint) {
+                core.setFailed(
+                  `${provider.label} AI model and endpoint are not configured in GitHub Repo Variables.`
+                );
+                return;
+              }
 
-            const requestUrl = apiEndpoint.replace(
-              "{model}",
-              encodeURIComponent(model)
-            );
-
-            if (!apiEndpoint) {
-              core.setFailed(
-                "AI_API_ENDPOINT is not configured in GitHub Repo Variables."
-              );
-              return;
             }
 
             const owner = context.repo.owner;
@@ -630,83 +662,107 @@ jobs:
             ${diff || "No textual diff is available."}
             `;
 
-            const response = await fetch(requestUrl, {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json",
-                "x-goog-api-key": apiKey
-              },
-              signal: AbortSignal.timeout(120_000),
-              body: JSON.stringify({
-                contents: [
-                  {
-                    role: "user",
-                    parts: [{ text: prompt }]
+            const requestAnswer = async provider => {
+              const requestUrl = provider.apiEndpoint.replace(
+                "{model}",
+                encodeURIComponent(provider.model)
+              );
+
+              core.info(
+                `${provider.label} AI attempt using ${provider.model}.`
+              );
+
+              const response = await fetch(requestUrl, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                  "x-goog-api-key": apiKey
+                },
+                signal: AbortSignal.timeout(120_000),
+                body: JSON.stringify({
+                  contents: [
+                    {
+                      role: "user",
+                      parts: [{ text: prompt }]
+                    }
+                  ],
+                  generationConfig: {
+                    maxOutputTokens: 10000,
+                    thinkingConfig: {
+                      thinkingLevel: "high"
+                    }
                   }
-                ],
-                generationConfig: {
-                  maxOutputTokens: 10000,
-                  thinkingConfig: {
-                    thinkingLevel: "high"
-                  }
-                }
-              })
-            });
+                })
+              });
 
-            if (!response.ok) {
-              const errorBody = await response.text();
+              if (!response.ok) {
+                const errorBody = await response.text();
+                throw new Error(
+                  `API returned ${response.status}: ${errorBody}`
+                );
+              }
 
-              core.setFailed(
-                `AI API returned ${response.status}: ${errorBody}`
+              const data = await response.json();
+              const candidate = data.candidates?.[0];
+
+              if (!candidate) {
+                core.debug(
+                  `Unexpected Gemini response: ${JSON.stringify(data)}`
+                );
+                throw new Error(
+                  `Gemini returned no candidates. Response keys: ${Object.keys(data).join(", ") || "none"}`
+                );
+              }
+
+              const finishReason = candidate.finishReason ?? "UNKNOWN";
+              const answer = candidate.content?.parts
+                ?.filter(part => typeof part.text === "string")
+                .map(part => part.text)
+                .join("")
+                .trim();
+
+              core.info(
+                `${provider.label} Gemini finish reason: ${finishReason}`
+              );
+              core.info(
+                `${provider.label} Gemini token usage: ${JSON.stringify(data.usageMetadata ?? {})}`
               );
 
-              return;
-            }
+              if (!answer) {
+                throw new Error(
+                  `AI returned an empty response. Finish reason: ${finishReason}`
+                );
+              }
 
-            const data = await response.json();
+              if (finishReason !== "STOP") {
+                throw new Error(
+                  `AI returned an incomplete response. Finish reason: ${finishReason}`
+                );
+              }
 
-            const candidate = data.candidates?.[0];
+              return { answer, model: provider.model };
+            };
 
-            if (!candidate) {
-              core.debug(`Unexpected Gemini response: ${JSON.stringify(data)}`);
-              core.setFailed(
-                `Gemini returned no candidates. Response keys: ${Object.keys(data).join(", ") || "none"}`
+            let result;
+
+            try {
+              result = await requestAnswer(providers[0]);
+            } catch (primaryError) {
+              core.warning(
+                `Primary AI attempt failed: ${primaryError.message}. Trying backup.`
               );
-              return;
+
+              try {
+                result = await requestAnswer(providers[1]);
+              } catch (backupError) {
+                core.setFailed(
+                  `Both AI attempts failed. Primary: ${primaryError.message}. Backup: ${backupError.message}`
+                );
+                return;
+              }
             }
 
-            const finishReason =
-              candidate.finishReason ?? "UNKNOWN";
-
-            const answer = candidate.content?.parts
-              ?.filter(part => typeof part.text === "string")
-              .map(part => part.text)
-              .join("")
-              .trim();
-
-            core.info(
-              `Gemini finish reason: ${finishReason}`
-            );
-
-            core.info(
-              `Gemini token usage: ${JSON.stringify(
-                data.usageMetadata ?? {}
-              )}`
-            );
-
-            if (!answer) {
-              core.setFailed(
-                `AI returned an empty response. Finish reason: ${finishReason}`
-              );
-              return;
-            }
-
-            if (finishReason !== "STOP") {
-              core.setFailed(
-                `AI returned an incomplete response. Finish reason: ${finishReason}`
-              );
-              return;
-            }
+            const { answer, model } = result;
 
             const responseMarker =
               `<!-- ai-review-response:${comment.id} -->`;

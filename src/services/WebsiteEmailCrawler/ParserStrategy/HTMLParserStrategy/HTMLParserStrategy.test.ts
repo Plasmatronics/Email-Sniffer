@@ -69,6 +69,7 @@ describe("HTMLParserStrategy", () => {
 			"/about",
 			"mailto:jane@example.com",
 		]);
+		expect(result.text).toContain("Email jane@example.com");
 	});
 
 	test("ignores anchors without an href attribute", async () => {

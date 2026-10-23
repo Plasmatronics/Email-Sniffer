@@ -1,6 +1,6 @@
 import { EventEmitter } from "node:events";
 import net, { type Socket } from "node:net";
-import { beforeEach, describe, expect, test, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { SMTPVerifier } from "./SMTPVerifier.ts";
 
 vi.mock("node:net", () => ({
@@ -13,6 +13,7 @@ const createConnection = vi.mocked(net.createConnection);
 
 class MockSocket extends EventEmitter {
 	destroyed = false;
+	writable = true;
 	private readonly responses: Array<string | string[] | Error>;
 
 	constructor(responses: Array<string | string[] | Error>) {
@@ -72,6 +73,11 @@ function successfulResponses(rcptResponse: string): string[] {
 describe("SMTPVerifier", () => {
 	beforeEach(() => {
 		createConnection.mockReset();
+		vi.stubEnv("SMTP_EHLO_HOSTNAME", "test.example");
+	});
+
+	afterEach(() => {
+		vi.unstubAllEnvs();
 	});
 
 	test.each([
@@ -95,7 +101,7 @@ describe("SMTPVerifier", () => {
 		{
 			code: 555,
 			message: "parameters not recognized",
-			status: "error",
+			status: "rejected",
 		},
 	])("classifies a $code RCPT response as $status", async (result) => {
 		mockConnection(successfulResponses(`${result.code} ${result.message}\r\n`));
@@ -121,27 +127,96 @@ describe("SMTPVerifier", () => {
 		});
 	});
 
-	test("rejects a response containing a malformed line", async () => {
+	test("returns an error when the peer ends before completing a response", async () => {
+		const socket = mockConnection([
+			"250 mx.example.com hello\r\n",
+			"250 sender ok\r\n",
+		]);
+		const write = socket.write;
+		socket.write = vi.fn((command: string) => {
+			if (command.startsWith("RCPT TO:")) {
+				queueMicrotask(() => socket.emit("data", Buffer.from("250 recipient")));
+				queueMicrotask(() => socket.emit("end"));
+				return true;
+			}
+
+			return write(command);
+		});
+		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message: "SMTP socket ended before the response completed",
+		});
+	});
+
+	test("returns an error for a response containing a malformed line", async () => {
 		mockConnection(
 			successfulResponses("malformed response\r\n250 recipient ok\r\n"),
 		);
 		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
 
-		await expect(verifier.verify("recipient@example.com")).rejects.toThrow(
-			"Invalid SMTP response line",
-		);
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message: "Invalid SMTP response line: malformed response",
+		});
 	});
 
-	test("rejects a multiline greeting whose reply codes do not match", async () => {
+	test("returns an error when a final response line omits its separator", async () => {
+		mockConnection(successfulResponses("250\r\n"));
+		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message: "Invalid SMTP response line: 250",
+		});
+	});
+
+	test("returns an error for a multiline greeting whose reply codes do not match", async () => {
 		mockConnection(
 			successfulResponses("250 recipient ok\r\n"),
 			"220-localhost ready\r\n550 greeting failed\r\n",
 		);
 		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
 
-		await expect(verifier.verify("recipient@example.com")).rejects.toThrow(
-			"Invalid SMTP response",
-		);
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message: "Invalid SMTP response: initially received code 220, then 550",
+		});
+	});
+
+	test("returns an error and stops when EHLO is rejected", async () => {
+		const socket = mockConnection(["550 EHLO rejected\r\n"]);
+		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			code: 550,
+			message: "EHLO failed: EHLO rejected",
+		});
+
+		expect(socket.write.mock.calls.map(([command]) => command)).toEqual([
+			"EHLO test.example\r\n",
+		]);
+	});
+
+	test("returns an error and stops when MAIL FROM is rejected", async () => {
+		const socket = mockConnection([
+			"250 EHLO accepted\r\n",
+			"550 sender rejected\r\n",
+		]);
+		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			code: 550,
+			message: "MAIL FROM failed: sender rejected",
+		});
+
+		expect(socket.write.mock.calls.map(([command]) => command)).toEqual([
+			"EHLO test.example\r\n",
+			"MAIL FROM:<sender@example.com>\r\n",
+		]);
 	});
 
 	test("sends the SMTP commands in transaction order", async () => {
@@ -151,7 +226,7 @@ describe("SMTPVerifier", () => {
 		await verifier.verify("recipient@example.com");
 
 		expect(socket.write.mock.calls.map(([command]) => command)).toEqual([
-			"EHLO ...\r\n",
+			"EHLO test.example\r\n",
 			"MAIL FROM:<sender@example.com>\r\n",
 			"RCPT TO:<recipient@example.com>\r\n",
 		]);
@@ -161,9 +236,11 @@ describe("SMTPVerifier", () => {
 		mockConnection([], "554 No SMTP service here\r\n");
 		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
 
-		await expect(verifier.verify("recipient@example.com")).rejects.toThrow(
-			"SMTP server returned invalid greeting",
-		);
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message:
+				"SMTP server returned invalid greeting: 554 No SMTP service here\r\n",
+		});
 	});
 
 	test("destroys the socket after an invalid SMTP greeting", async () => {
@@ -184,9 +261,10 @@ describe("SMTPVerifier", () => {
 		});
 		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
 
-		await expect(verifier.verify("recipient@example.com")).rejects.toBe(
-			connectionError,
-		);
+		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+			status: "error",
+			message: "An error occurred during connection opening",
+		});
 	});
 
 	test("closes the socket after a successful verification", async () => {

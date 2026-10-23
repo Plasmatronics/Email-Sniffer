@@ -9,6 +9,7 @@ describe("SMTPVerifier integration", () => {
 	let createConnectionSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeAll(async () => {
+		vi.stubEnv("SMTP_EHLO_HOSTNAME", "localhost");
 		server = net.createServer((socket) => {
 			socket.write("220 localhost ready\r\n");
 			let requestBuffer = "";
@@ -55,6 +56,7 @@ describe("SMTPVerifier integration", () => {
 
 	afterAll(async () => {
 		createConnectionSpy.mockRestore();
+		vi.unstubAllEnvs();
 		await new Promise<void>((resolve, reject) => {
 			server.close((error) => (error ? reject(error) : resolve()));
 		});

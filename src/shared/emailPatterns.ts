@@ -45,3 +45,8 @@ export const generateEmailLocalPartMap: Record<EmailPattern, GenerateEmail> = {
 	[EmailPattern.FirstInitialLastInitial]: (firstName, lastName) =>
 		`${firstName[0]}${lastName[0]}`,
 };
+
+export interface PatternInference {
+	email: string;
+	pattern: EmailPattern;
+}

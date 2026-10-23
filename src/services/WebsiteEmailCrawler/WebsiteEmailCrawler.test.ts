@@ -3,6 +3,8 @@ import { beforeEach, describe, expect, test, vi } from "vitest";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
 import { TextChunker } from "../TextChunker";
+import { EmailPattern } from "../../shared";
+import { EmailPatternInferrer } from "../EmailPatternInferrer";
 import type { ParserStrategy } from "./ParserStrategy";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
 
@@ -45,6 +47,7 @@ describe("WebsiteEmailCrawler", () => {
 		return new WebsiteEmailCrawler(
 			[strategy],
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			new EmailPatternInferrer(new TextChunker()),
 		);
 	}
 
@@ -60,13 +63,18 @@ describe("WebsiteEmailCrawler", () => {
 
 	test("extracts emails from parsed text and encoded mailto links", async () => {
 		parse.mockResolvedValue({
-			links: ["mailto:linked%40example.com?subject=Hello"],
-			text: "Contact visible@example.com",
+			links: ["mailto:alice.brown%40example.com?subject=Hello"],
+			text: "Contact Alice Brown at alice.brown@example.com",
 		});
 		const crawler = createCrawler();
 
 		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({
-			[SEED_URL]: ["visible@example.com", "linked@example.com"],
+			[SEED_URL]: [
+				{
+					email: "alice.brown@example.com",
+					pattern: EmailPattern.FirstNameDotLastName,
+				},
+			],
 		});
 	});
 

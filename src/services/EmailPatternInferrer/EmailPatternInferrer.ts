@@ -1,12 +1,11 @@
 import z from "zod";
-import { EmailPattern, generateEmailLocalPartMap } from "../../shared";
+import {
+	EmailPattern,
+	generateEmailLocalPartMap,
+	PatternInference,
+} from "../../shared";
 import { ExtractedEmail } from "../EmailExtractor";
 import { TextChunker } from "../TextChunker";
-
-export interface PatternInference {
-	email: string;
-	pattern: EmailPattern;
-}
 
 export class EmailPatternInferrer {
 	constructor(private chunker: TextChunker) {}

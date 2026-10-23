@@ -2,8 +2,11 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { EmailExtractor } from "../EmailExtractor";
+import { EmailPatternInferrer } from "../EmailPatternInferrer";
+import { TextChunker } from "../TextChunker";
 import { HTMLParserStrategy } from "./ParserStrategy";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
+import { DocumentClamper } from "../DocumentClamper";
 
 describe("WebsiteEmailCrawler integration", () => {
 	let baseUrl: string;
@@ -54,14 +57,15 @@ describe("WebsiteEmailCrawler integration", () => {
 	test("crawls same-origin HTML pages through the real service stack", async () => {
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
-			new EmailExtractor(),
+			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			new EmailPatternInferrer(new TextChunker()),
 		);
 
 		await expect(
 			crawler.crawl(`${baseUrl}/`, { maxPages: 2 }),
 		).resolves.toEqual({
-			[`${baseUrl}/`]: ["root@example.com", "linked@example.com"],
-			[`${baseUrl}/contact`]: ["contact@example.com"],
+			[`${baseUrl}/`]: [],
+			[`${baseUrl}/contact`]: [],
 		});
 	});
 
@@ -69,7 +73,8 @@ describe("WebsiteEmailCrawler integration", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
-			new EmailExtractor(),
+			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			new EmailPatternInferrer(new TextChunker()),
 		);
 
 		await expect(

@@ -25,22 +25,24 @@ describe("MXRecordRetriever", () => {
 		resolveMx.mockResolvedValue(mxRecords);
 	});
 
-	test("rejects an invalid email address", () => {
-		expect(() => new MXRecordRetriever("not-an-email")).toThrow();
+	test("returns an empty array for an invalid email address", async () => {
+		const retriever = new MXRecordRetriever();
+
+		await expect(retriever.findMXRecords("not-an-email")).resolves.toEqual([]);
 	});
 
 	test("queries MX records for the recipient domain", async () => {
-		const retriever = new MXRecordRetriever("user@example.com");
+		const retriever = new MXRecordRetriever();
 
-		await retriever.findMXRecords();
+		await retriever.findMXRecords("user@example.com");
 
 		expect(resolveMx).toHaveBeenCalledWith("example.com");
 	});
 
 	test("returns MX records in ascending priority order", async () => {
-		const retriever = new MXRecordRetriever("user@example.com", 3);
+		const retriever = new MXRecordRetriever(3);
 
-		await expect(retriever.findMXRecords()).resolves.toEqual([
+		await expect(retriever.findMXRecords("user@example.com")).resolves.toEqual([
 			"mx-1.example.com",
 			"mx-2.example.com",
 			"mx-3.example.com",
@@ -57,48 +59,67 @@ describe("MXRecordRetriever", () => {
 		{ label: "negative infinity", maxRecords: -Infinity, expectedCount: 1 },
 		{ label: "a value above the maximum", maxRecords: 10, expectedCount: 5 },
 	])("normalizes $label record cap", async ({ maxRecords, expectedCount }) => {
-		const retriever = new MXRecordRetriever("user@example.com", maxRecords);
+		const retriever = new MXRecordRetriever(maxRecords);
 
-		const records = await retriever.findMXRecords();
+		const records = await retriever.findMXRecords("user@example.com");
 
 		expect(records).toHaveLength(expectedCount);
 	});
 
 	test("returns every available record when fewer exist than requested", async () => {
 		resolveMx.mockResolvedValue(mxRecords.slice(0, 2));
-		const retriever = new MXRecordRetriever("user@example.com", 5);
+		const retriever = new MXRecordRetriever(5);
 
-		const records = await retriever.findMXRecords();
+		const records = await retriever.findMXRecords("user@example.com");
 
 		expect(records).toHaveLength(2);
 	});
 
-	test("rejects an empty MX response", async () => {
+	test("returns an empty array for an empty MX response", async () => {
 		resolveMx.mockResolvedValue([]);
-		const retriever = new MXRecordRetriever("user@example.com");
+		const retriever = new MXRecordRetriever();
 
-		await expect(retriever.findMXRecords()).rejects.toThrow(
-			"Could not find any MX Records for this domain.",
+		await expect(retriever.findMXRecords("user@example.com")).resolves.toEqual(
+			[],
 		);
 	});
 
 	test.each([
 		{ label: "root-label exchange", exchange: "." },
 		{ label: "empty exchange returned by Node DNS", exchange: "" },
-	])("rejects a null MX response with $label", async ({ exchange }) => {
-		resolveMx.mockResolvedValue([{ exchange, priority: 0 }]);
-		const retriever = new MXRecordRetriever("user@example.com");
+	])(
+		"returns an empty array for a null MX response with $label",
+		async ({ exchange }) => {
+			resolveMx.mockResolvedValue([{ exchange, priority: 0 }]);
+			const retriever = new MXRecordRetriever();
 
-		await expect(retriever.findMXRecords()).rejects.toThrow(
-			"Could not find any MX Records for this domain.",
-		);
-	});
+			await expect(
+				retriever.findMXRecords("user@example.com"),
+			).resolves.toEqual([]);
+		},
+	);
+
+	test.each(["EBADNAME", "ENODATA", "ENOTFOUND"])(
+		"returns an empty array for DNS error %s",
+		async (code) => {
+			resolveMx.mockRejectedValue(
+				Object.assign(new Error("DNS lookup failed"), { code }),
+			);
+			const retriever = new MXRecordRetriever();
+
+			await expect(
+				retriever.findMXRecords("user@example.com"),
+			).resolves.toEqual([]);
+		},
+	);
 
 	test("propagates DNS resolver failures", async () => {
 		const dnsError = new Error("DNS lookup failed");
 		resolveMx.mockRejectedValue(dnsError);
-		const retriever = new MXRecordRetriever("user@example.com");
+		const retriever = new MXRecordRetriever();
 
-		await expect(retriever.findMXRecords()).rejects.toBe(dnsError);
+		await expect(retriever.findMXRecords("user@example.com")).rejects.toBe(
+			dnsError,
+		);
 	});
 });

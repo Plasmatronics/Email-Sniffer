@@ -12,20 +12,12 @@ const NO_MX_RECORD_DNS_ERROR_CODES = new Set([
 	"ENODATA",
 	"ENOTFOUND",
 ]);
-const NO_MX_RECORD_ERROR_MESSAGE =
-	"Could not find any MX Records for this domain.";
 
 export class MXRecordRetriever {
-	private destinationDomain: string;
 	private numRecordsToReturn: number;
 
-	constructor(
-		private mailTo: string,
-		maxRecords: number = NUM_RECORDS_DEFAULT,
-	) {
-		this.validateEmail(this.mailTo);
+	constructor(maxRecords: number = NUM_RECORDS_DEFAULT) {
 		this.numRecordsToReturn = this.clampRecordsCap(maxRecords);
-		this.destinationDomain = this.extractDomain(this.mailTo);
 	}
 
 	private clampRecordsCap(unverifiedRecordsCap: number): number {
@@ -40,21 +32,23 @@ export class MXRecordRetriever {
 		return email.slice(atIndex + 1);
 	}
 
-	private validateEmail(email: string): void {
-		z.email().parse(email);
+	private validateEmail(email: string): boolean {
+		return z.email().safeParse(email).success;
 	}
 
-	async findMXRecords(): Promise<string[]> {
+	async findMXRecords(mailTo: string): Promise<string[]> {
+		if (!this.validateEmail(mailTo)) return [];
+		const destinationDomain = this.extractDomain(mailTo);
 		let res: MxRecord[];
 		try {
-			res = await dns.resolveMx(this.destinationDomain);
+			res = await dns.resolveMx(destinationDomain);
 		} catch (error) {
 			if (
 				error instanceof Error &&
 				"code" in error &&
 				NO_MX_RECORD_DNS_ERROR_CODES.has(String(error.code))
 			) {
-				throw new Error(NO_MX_RECORD_ERROR_MESSAGE, { cause: error });
+				return [];
 			}
 
 			throw error;
@@ -69,8 +63,6 @@ export class MXRecordRetriever {
 			if (minHeap.size) highestPriorityRecords.push(minHeap.pop()!.exchange);
 		}
 
-		if (!highestPriorityRecords.length)
-			throw new Error(NO_MX_RECORD_ERROR_MESSAGE);
 		return highestPriorityRecords;
 	}
 }

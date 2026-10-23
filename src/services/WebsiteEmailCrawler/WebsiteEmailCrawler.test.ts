@@ -41,14 +41,10 @@ describe("WebsiteEmailCrawler", () => {
 	const parse = vi.fn<ParserStrategy["parse"]>();
 	const strategy: ParserStrategy = { supports, parse };
 
-	function createCrawler(maxPages = 5, config = {}) {
+	function createCrawler() {
 		return new WebsiteEmailCrawler(
 			[strategy],
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
-			{
-				maxPages,
-				...config,
-			},
 		);
 	}
 
@@ -67,9 +63,9 @@ describe("WebsiteEmailCrawler", () => {
 			links: ["mailto:linked%40example.com?subject=Hello"],
 			text: "Contact visible@example.com",
 		});
-		const crawler = createCrawler(1);
+		const crawler = createCrawler();
 
-		await expect(crawler.crawl(SEED_URL)).resolves.toEqual({
+		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({
 			[SEED_URL]: ["visible@example.com", "linked@example.com"],
 		});
 	});
@@ -91,7 +87,7 @@ describe("WebsiteEmailCrawler", () => {
 			.mockResolvedValue({ links: [], text: "" });
 		const crawler = createCrawler();
 
-		await crawler.crawl(SEED_URL);
+		await crawler.crawl(SEED_URL, { maxPages: 5 });
 
 		expect(get.mock.calls.map(([url]) => url)).toEqual([
 			SEED_URL,
@@ -106,9 +102,9 @@ describe("WebsiteEmailCrawler", () => {
 				text: "",
 			})
 			.mockResolvedValue({ links: [], text: "" });
-		const crawler = createCrawler(4);
+		const crawler = createCrawler();
 
-		await crawler.crawl(SEED_URL);
+		await crawler.crawl(SEED_URL, { maxPages: 4 });
 
 		expect(get.mock.calls.map(([url]) => url)).toEqual([
 			SEED_URL,
@@ -133,21 +129,22 @@ describe("WebsiteEmailCrawler", () => {
 
 			return { links: [`/${page + 1}`], text: "" };
 		});
-		const crawler = createCrawler(maxPages);
+		const crawler = createCrawler();
 
-		await crawler.crawl(SEED_URL);
+		await crawler.crawl(SEED_URL, { maxPages });
 
 		expect(get).toHaveBeenCalledTimes(expectedRequests);
 	});
 
 	test("forces safe response and redirect options", async () => {
-		const crawler = createCrawler(1, {
+		const crawler = createCrawler();
+
+		await crawler.crawl(SEED_URL, {
+			maxPages: 1,
 			maxContentLength: 2_000_000,
 			maxRedirects: 10,
 			timeout: 500,
 		});
-
-		await crawler.crawl(SEED_URL);
 
 		expect(get).toHaveBeenCalledWith(
 			SEED_URL,
@@ -161,9 +158,12 @@ describe("WebsiteEmailCrawler", () => {
 	});
 
 	test("preserves a caller-provided response limit below the maximum", async () => {
-		const crawler = createCrawler(1, { maxContentLength: 25_000 });
+		const crawler = createCrawler();
 
-		await crawler.crawl(SEED_URL);
+		await crawler.crawl(SEED_URL, {
+			maxPages: 1,
+			maxContentLength: 25_000,
+		});
 
 		expect(get).toHaveBeenCalledWith(
 			SEED_URL,
@@ -173,25 +173,25 @@ describe("WebsiteEmailCrawler", () => {
 
 	test("skips a response with no matching parser strategy", async () => {
 		supports.mockReturnValue(false);
-		const crawler = createCrawler(1);
+		const crawler = createCrawler();
 
-		await expect(crawler.crawl(SEED_URL)).resolves.toEqual({});
+		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({});
 		expect(parse).not.toHaveBeenCalled();
 	});
 
 	test("continues after a parser failure", async () => {
 		parse.mockRejectedValue(new Error("Invalid content"));
-		const crawler = createCrawler(1);
+		const crawler = createCrawler();
 
-		await expect(crawler.crawl(SEED_URL)).resolves.toEqual({});
+		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({});
 		expect(console.warn).toHaveBeenCalledWith("Invalid content");
 	});
 
 	test("continues after an Axios request failure", async () => {
 		get.mockRejectedValue(new AxiosError("Request failed"));
-		const crawler = createCrawler(1);
+		const crawler = createCrawler();
 
-		await expect(crawler.crawl(SEED_URL)).resolves.toEqual({});
+		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({});
 		expect(console.warn).toHaveBeenCalledWith(
 			`Failed to fetch ${SEED_URL}: Request failed`,
 		);

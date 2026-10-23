@@ -28,10 +28,7 @@ export class WebsiteEmailCrawler {
 	constructor(
 		private readonly parserStrategies: ParserStrategy[],
 		private readonly emailExtractor: EmailExtractor,
-		private config: WebsiteEmailCrawlerConfig,
-	) {
-		this.config = this.normalizeConfig(config);
-	}
+	) {}
 
 	private normalizeConfig(
 		config: WebsiteEmailCrawlerConfig,
@@ -56,8 +53,11 @@ export class WebsiteEmailCrawler {
 		};
 	}
 
-	async crawl(url: string): Promise<CrawlResult> {
-		const { maxPages, ...axiosConfig } = this.config;
+	async crawl(
+		url: string,
+		config: WebsiteEmailCrawlerConfig,
+	): Promise<CrawlResult> {
+		const { maxPages, ...axiosConfig } = this.normalizeConfig(config);
 
 		const crawlResults: CrawlResult = {};
 

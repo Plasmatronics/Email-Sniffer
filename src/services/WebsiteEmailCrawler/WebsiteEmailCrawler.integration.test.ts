@@ -55,10 +55,11 @@ describe("WebsiteEmailCrawler integration", () => {
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
 			new EmailExtractor(),
-			{ maxPages: 2 },
 		);
 
-		await expect(crawler.crawl(`${baseUrl}/`)).resolves.toEqual({
+		await expect(
+			crawler.crawl(`${baseUrl}/`, { maxPages: 2 }),
+		).resolves.toEqual({
 			[`${baseUrl}/`]: ["root@example.com", "linked@example.com"],
 			[`${baseUrl}/contact`]: ["contact@example.com"],
 		});
@@ -69,10 +70,11 @@ describe("WebsiteEmailCrawler integration", () => {
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
 			new EmailExtractor(),
-			{ maxPages: 1 },
 		);
 
-		await expect(crawler.crawl(`${baseUrl}/redirect`)).resolves.toEqual({});
+		await expect(
+			crawler.crawl(`${baseUrl}/redirect`, { maxPages: 1 }),
+		).resolves.toEqual({});
 		expect(warn).toHaveBeenCalledOnce();
 	});
 });

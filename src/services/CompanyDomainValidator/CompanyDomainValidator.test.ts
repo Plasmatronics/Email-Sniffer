@@ -27,8 +27,13 @@ describe("CompanyDomainValidator", () => {
 		domain = "wonder.com",
 		companyUrl = COMPANY_URL,
 		config,
-	}: ValidatorOptions = {}): CompanyDomainValidator {
-		return new CompanyDomainValidator({ source, domain }, companyUrl, config);
+	}: ValidatorOptions = {}) {
+		const validator = new CompanyDomainValidator(config);
+
+		return {
+			validateDomain: () =>
+				validator.validateDomain({ source, domain }, companyUrl),
+		};
 	}
 
 	test("passes an exact company-domain match at maximum confidence", () => {

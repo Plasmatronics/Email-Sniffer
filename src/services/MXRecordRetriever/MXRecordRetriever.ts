@@ -1,7 +1,7 @@
-import z from "zod";
 import { MinHeap } from "mnemonist";
 import dns from "node:dns/promises";
 import type { MxRecord } from "node:dns";
+import { validateEmail, extractDomain } from "../../utils";
 
 export const MAX_RECORDS = 5;
 export const MIN_RECORDS = 1;
@@ -27,18 +27,9 @@ export class MXRecordRetriever {
 		return Math.min(Math.max(MIN_RECORDS, normalizedCap), MAX_RECORDS);
 	}
 
-	private extractDomain(email: string): string {
-		const atIndex = email.indexOf("@");
-		return email.slice(atIndex + 1);
-	}
-
-	private validateEmail(email: string): boolean {
-		return z.email().safeParse(email).success;
-	}
-
 	async findMXRecords(mailTo: string): Promise<string[]> {
-		if (!this.validateEmail(mailTo)) return [];
-		const destinationDomain = this.extractDomain(mailTo);
+		if (!validateEmail(mailTo)) return [];
+		const destinationDomain = extractDomain(mailTo);
 		let res: MxRecord[];
 		try {
 			res = await dns.resolveMx(destinationDomain);

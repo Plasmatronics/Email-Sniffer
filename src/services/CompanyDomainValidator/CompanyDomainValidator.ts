@@ -1,7 +1,6 @@
 import { getDomainWithoutSuffix, getFullDomain } from "tldts";
 import {
 	DomainValidatorConfig,
-	UnverifiedDomainData,
 	VerificationResult,
 	VerifiedDomainData,
 } from "./CompanyDomainValidator.types";
@@ -25,25 +24,18 @@ export class CompanyDomainValidator {
 	) {}
 
 	validateDomain(
-		unverifiedDomainData: UnverifiedDomainData,
+		source: string,
+		domain: string,
 		companyUrl: string,
 	): VerifiedDomainData {
 		let confidence = 0;
-		confidence = this.validateDomainSource(
-			confidence,
-			unverifiedDomainData,
-			companyUrl,
-		);
-		confidence = this.validateSubstringMatch(
-			confidence,
-			unverifiedDomainData,
-			companyUrl,
-		);
+		confidence = this.validateDomainSource(confidence, source, companyUrl);
+		confidence = this.validateSubstringMatch(confidence, domain, companyUrl);
 
 		return {
 			confidence: confidence,
 			verificationResult: this.getVerificationResult(confidence),
-			domain: unverifiedDomainData.domain,
+			domain: domain,
 		};
 	}
 
@@ -61,12 +53,10 @@ export class CompanyDomainValidator {
 
 	private validateDomainSource(
 		confidence: number,
-		unverifiedDomainData: UnverifiedDomainData,
+		source: string,
 		companyUrl: string,
 	): number {
-		const normalizedSourceUrl = this.normalizeUrlToDomain(
-			unverifiedDomainData.source,
-		);
+		const normalizedSourceUrl = this.normalizeUrlToDomain(source);
 		const normalizedCompanyUrl = this.normalizeUrlToDomain(companyUrl);
 		if (!normalizedSourceUrl || !normalizedCompanyUrl) {
 			if (!normalizedSourceUrl)
@@ -82,9 +72,7 @@ export class CompanyDomainValidator {
 
 		let addedConfidence = 0;
 		if (normalizedCompanyUrl === normalizedSourceUrl)
-			addedConfidence += this.getUrlConfidenceScore(
-				unverifiedDomainData.source,
-			);
+			addedConfidence += this.getUrlConfidenceScore(source);
 
 		return this.updateConfidence(confidence, addedConfidence);
 	}
@@ -109,11 +97,11 @@ export class CompanyDomainValidator {
 
 	private validateSubstringMatch(
 		confidence: number,
-		unverifiedDomainData: UnverifiedDomainData,
+		domain: string,
 		companyUrl: string,
 	): number {
 		const companyUrlOriginal = this.normalizeUrlToDomain(companyUrl);
-		const unverifiedDomainOriginal = unverifiedDomainData.domain;
+		const unverifiedDomainOriginal = domain;
 		if (!companyUrlOriginal) {
 			console.warn(
 				`Could not extract domain from company URL: "${companyUrlOriginal}".`,

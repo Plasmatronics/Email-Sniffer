@@ -32,7 +32,7 @@ describe("CompanyDomainValidator", () => {
 
 		return {
 			validateDomain: () =>
-				validator.validateDomain({ source, domain }, companyUrl),
+				validator.validateDomain(source, domain, companyUrl),
 		};
 	}
 

@@ -16,15 +16,17 @@ export class SMTPVerifier {
 	private readonly socketErrors = new WeakMap<Socket, Error>();
 
 	constructor(
-		private readonly from: string,
-		private readonly mxDestinationHost: string,
 		private readonly connectionConfig?: Omit<
 			net.NetConnectOpts,
 			"host" | "port"
 		>,
 	) {}
 
-	async verify(email: string): Promise<SMTPVerificationResult> {
+	async verify(
+		email: string,
+		from: string,
+		mxDestinationHost: string,
+	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
 		const globalTimer = setTimeout(() => {
 			controller.abort(new Error("SMTP verification exceeded 45 seconds"));
@@ -37,9 +39,9 @@ export class SMTPVerifier {
 			if (!ehloHostName) throw new Error("No configured ehlo Host Name");
 
 			this.verifyEmail(email);
-			this.verifyEmail(this.from);
+			this.verifyEmail(from);
 
-			socket = await this.openConnection(controller.signal);
+			socket = await this.openConnection(mxDestinationHost, controller.signal);
 
 			const ehloRes = await this.sendCommand(socket, `EHLO ${ehloHostName}`);
 			const parsedehloRes = this.parseSMTPRes(ehloRes);
@@ -50,10 +52,7 @@ export class SMTPVerifier {
 					message: `EHLO failed: ${parsedehloRes.message}`,
 				};
 
-			const mailFromRes = await this.sendCommand(
-				socket,
-				`MAIL FROM:<${this.from}>`,
-			);
+			const mailFromRes = await this.sendCommand(socket, `MAIL FROM:<${from}>`);
 			const parsedMailFrom = this.parseSMTPRes(mailFromRes);
 			if (parsedMailFrom.code !== 250)
 				return {
@@ -227,12 +226,15 @@ export class SMTPVerifier {
 		}
 	}
 
-	private openConnection(abortSignal: AbortSignal): Promise<Socket> {
+	private openConnection(
+		mxDestinationHost: string,
+		abortSignal: AbortSignal,
+	): Promise<Socket> {
 		return new Promise((resolve, reject) => {
 			const socket = net.createConnection({
 				timeout: DEFAULT_TIMEOUT,
 				...(this.connectionConfig ?? {}),
-				host: this.mxDestinationHost,
+				host: mxDestinationHost,
 				port: 25,
 				signal: abortSignal,
 			});

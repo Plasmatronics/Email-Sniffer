@@ -63,9 +63,15 @@ describe("SMTPVerifier integration", () => {
 	});
 
 	test("completes an SMTP verification over a real socket", async () => {
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("accepted@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"accepted@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "accepted",
 			code: 250,
 			message: "recipient ok",
@@ -73,11 +79,19 @@ describe("SMTPVerifier integration", () => {
 	});
 
 	test("runs concurrent SMTP verifications on independent sockets", async () => {
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
 		const results = await Promise.all([
-			verifier.verify("accepted@example.com"),
-			verifier.verify("rejected@example.com"),
+			verifier.verify(
+				"accepted@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+			verifier.verify(
+				"rejected@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
 		]);
 
 		expect(results.map(({ status }) => status)).toEqual([

@@ -105,11 +105,15 @@ describe("SMTPVerifier", () => {
 		},
 	])("classifies a $code RCPT response as $status", async (result) => {
 		mockConnection(successfulResponses(`${result.code} ${result.message}\r\n`));
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual(
-			result,
-		);
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual(result);
 	});
 
 	test("waits for a complete CRLF-terminated RCPT response", async () => {
@@ -118,9 +122,15 @@ describe("SMTPVerifier", () => {
 			"250 sender ok\r\n",
 			["250 recipient", " ok\r\n"],
 		]);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "accepted",
 			code: 250,
 			message: "recipient ok",
@@ -142,9 +152,15 @@ describe("SMTPVerifier", () => {
 
 			return write(command);
 		});
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message: "SMTP socket ended before the response completed",
 		});
@@ -154,9 +170,15 @@ describe("SMTPVerifier", () => {
 		mockConnection(
 			successfulResponses("malformed response\r\n250 recipient ok\r\n"),
 		);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response line: malformed response",
 		});
@@ -164,9 +186,15 @@ describe("SMTPVerifier", () => {
 
 	test("returns an error when a final response line omits its separator", async () => {
 		mockConnection(successfulResponses("250\r\n"));
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response line: 250",
 		});
@@ -177,9 +205,15 @@ describe("SMTPVerifier", () => {
 			successfulResponses("250 recipient ok\r\n"),
 			"220-localhost ready\r\n550 greeting failed\r\n",
 		);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response: initially received code 220, then 550",
 		});
@@ -187,9 +221,15 @@ describe("SMTPVerifier", () => {
 
 	test("returns an error and stops when EHLO is rejected", async () => {
 		const socket = mockConnection(["550 EHLO rejected\r\n"]);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			code: 550,
 			message: "EHLO failed: EHLO rejected",
@@ -205,9 +245,15 @@ describe("SMTPVerifier", () => {
 			"250 EHLO accepted\r\n",
 			"550 sender rejected\r\n",
 		]);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			code: 550,
 			message: "MAIL FROM failed: sender rejected",
@@ -221,9 +267,13 @@ describe("SMTPVerifier", () => {
 
 	test("sends the SMTP commands in transaction order", async () => {
 		const socket = mockConnection(successfulResponses("250 recipient ok\r\n"));
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await verifier.verify("recipient@example.com");
+		await verifier.verify(
+			"recipient@example.com",
+			"sender@example.com",
+			"mx.example.com",
+		);
 
 		expect(socket.write.mock.calls.map(([command]) => command)).toEqual([
 			"EHLO test.example\r\n",
@@ -234,9 +284,15 @@ describe("SMTPVerifier", () => {
 
 	test("rejects an invalid SMTP greeting", async () => {
 		mockConnection([], "554 No SMTP service here\r\n");
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message:
 				"SMTP server returned invalid greeting: 554 No SMTP service here\r\n",
@@ -245,9 +301,11 @@ describe("SMTPVerifier", () => {
 
 	test("destroys the socket after an invalid SMTP greeting", async () => {
 		const socket = mockConnection([], "554 No SMTP service here\r\n");
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await verifier.verify("recipient@example.com").catch(() => undefined);
+		await verifier
+			.verify("recipient@example.com", "sender@example.com", "mx.example.com")
+			.catch(() => undefined);
 
 		expect(socket.destroy).toHaveBeenCalledOnce();
 	});
@@ -259,9 +317,15 @@ describe("SMTPVerifier", () => {
 			queueMicrotask(() => socket.emit("error", connectionError));
 			return socket as unknown as Socket;
 		});
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await expect(verifier.verify("recipient@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify(
+				"recipient@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+		).resolves.toEqual({
 			status: "error",
 			message: "An error occurred during connection opening",
 		});
@@ -269,18 +333,24 @@ describe("SMTPVerifier", () => {
 
 	test("closes the socket after a successful verification", async () => {
 		const socket = mockConnection(successfulResponses("250 recipient ok\r\n"));
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await verifier.verify("recipient@example.com");
+		await verifier.verify(
+			"recipient@example.com",
+			"sender@example.com",
+			"mx.example.com",
+		);
 
 		expect(socket.end).toHaveBeenCalledOnce();
 	});
 
 	test("closes the socket after a command fails", async () => {
 		const socket = mockConnection([new Error("EHLO failed")]);
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
-		await verifier.verify("recipient@example.com").catch(() => undefined);
+		await verifier
+			.verify("recipient@example.com", "sender@example.com", "mx.example.com")
+			.catch(() => undefined);
 
 		expect(socket.end).toHaveBeenCalledOnce();
 	});
@@ -288,11 +358,19 @@ describe("SMTPVerifier", () => {
 	test("uses independent sockets for concurrent verifications", async () => {
 		mockConnection(successfulResponses("250 first recipient ok\r\n"));
 		mockConnection(successfulResponses("550 second recipient unavailable\r\n"));
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier();
 
 		const results = await Promise.all([
-			verifier.verify("first@example.com"),
-			verifier.verify("second@example.com"),
+			verifier.verify(
+				"first@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
+			verifier.verify(
+				"second@example.com",
+				"sender@example.com",
+				"mx.example.com",
+			),
 		]);
 
 		expect(results).toEqual([

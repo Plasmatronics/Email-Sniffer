@@ -8,5 +8,5 @@ export const extractDomain = (email: string): string => {
 	if (!validateEmail(email)) return "";
 
 	const atIndex = email.indexOf("@");
-	return email.slice(atIndex + 1);
+	return email.slice(atIndex + 1).toLowerCase();
 };

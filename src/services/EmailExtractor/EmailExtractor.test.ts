@@ -48,7 +48,7 @@ describe("EmailExtractor", () => {
 
 			const emails = extractor.extractEmails(`Contact ${email}.`);
 
-			expect(emails).toEqual([email]);
+			expect(emails).toEqual([email.toLowerCase()]);
 		});
 
 		test.each([

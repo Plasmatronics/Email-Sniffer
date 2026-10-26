@@ -7,3 +7,4 @@ export * from "./DocumentClamper";
 export * from "./TextChunker";
 export * from "./EmailPatternInferrer";
 export * from "./SMTPVerifier";
+export * from "./EmailGenerator";

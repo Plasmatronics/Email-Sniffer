@@ -1,4 +1,5 @@
 import net, { type AddressInfo, type Server } from "node:net";
+import axios, { type AxiosResponse } from "axios";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { CompanyDomainValidator } from "../CompanyDomainValidator";
 import { DocumentClamper } from "../DocumentClamper";
@@ -9,6 +10,10 @@ import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
 import { TextChunker } from "../TextChunker";
 import { WebsiteEmailCrawler } from "../WebsiteEmailCrawler";
+import {
+	HTMLParserStrategy,
+	PDFParserStrategy,
+} from "../WebsiteEmailCrawler/ParserStrategy";
 import { EmailGenerator } from "./EmailGenerator";
 
 describe("EmailGenerator integration", () => {
@@ -67,24 +72,28 @@ describe("EmailGenerator integration", () => {
 	});
 
 	test("infers a crawled email through a real SMTP verifier", async () => {
+		vi.spyOn(axios, "get").mockResolvedValue({
+			headers: { "content-type": "text/html; charset=utf-8" },
+			data: Buffer.from(`
+				<html>
+					<body>
+						<h1>Contact Alice Smith</h1>
+						<p>Email alice.smith@example.com</p>
+					</body>
+				</html>
+			`),
+		} as AxiosResponse<Buffer>);
+
 		const mxRecordRetriever = new MXRecordRetriever();
 		vi.spyOn(mxRecordRetriever, "findMXRecords").mockResolvedValue([
 			"mx.example.com",
 		]);
 
 		const websiteEmailCrawler = new WebsiteEmailCrawler(
-			[],
+			[new HTMLParserStrategy(), new PDFParserStrategy()],
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
 		);
-		vi.spyOn(websiteEmailCrawler, "crawl").mockResolvedValue({
-			"https://example.com/contact": [
-				{
-					email: "alice.smith@example.com",
-					pattern: EmailPattern.FirstNameDotLastName,
-				},
-			],
-		});
 
 		const generator = new EmailGenerator(
 			{

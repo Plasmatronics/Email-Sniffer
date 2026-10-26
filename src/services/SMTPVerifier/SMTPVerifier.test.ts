@@ -108,11 +108,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual(result);
 	});
 
@@ -125,11 +123,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "accepted",
 			code: 250,
@@ -155,11 +151,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message: "SMTP socket ended before the response completed",
@@ -173,11 +167,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response line: malformed response",
@@ -189,11 +181,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response line: 250",
@@ -208,11 +198,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message: "Invalid SMTP response: initially received code 220, then 550",
@@ -224,11 +212,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			code: 550,
@@ -248,11 +234,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			code: 550,
@@ -265,15 +249,54 @@ describe("SMTPVerifier", () => {
 		]);
 	});
 
+	test("tries MX records in order until one returns a terminal result", async () => {
+		mockConnection(
+			successfulResponses("450 recipient temporarily unavailable\r\n"),
+		);
+		mockConnection(successfulResponses("250 recipient ok\r\n"));
+		const verifier = new SMTPVerifier();
+
+		await expect(
+			verifier.verify("recipient@example.com", "sender@example.com", [
+				"mx-primary.example.com",
+				"mx-fallback.example.com",
+			]),
+		).resolves.toEqual({
+			status: "accepted",
+			code: 250,
+			message: "recipient ok",
+		});
+
+		expect(createConnection).toHaveBeenNthCalledWith(
+			1,
+			expect.objectContaining({ host: "mx-primary.example.com", port: 25 }),
+		);
+		expect(createConnection).toHaveBeenNthCalledWith(
+			2,
+			expect.objectContaining({ host: "mx-fallback.example.com", port: 25 }),
+		);
+	});
+
+	test("returns an error when no MX records are provided", async () => {
+		const verifier = new SMTPVerifier();
+
+		await expect(
+			verifier.verify("recipient@example.com", "sender@example.com", []),
+		).resolves.toEqual({
+			status: "error",
+			message: "No MX records were available.",
+		});
+
+		expect(createConnection).not.toHaveBeenCalled();
+	});
+
 	test("sends the SMTP commands in transaction order", async () => {
 		const socket = mockConnection(successfulResponses("250 recipient ok\r\n"));
 		const verifier = new SMTPVerifier();
 
-		await verifier.verify(
-			"recipient@example.com",
-			"sender@example.com",
+		await verifier.verify("recipient@example.com", "sender@example.com", [
 			"mx.example.com",
-		);
+		]);
 
 		expect(socket.write.mock.calls.map(([command]) => command)).toEqual([
 			"EHLO test.example\r\n",
@@ -287,11 +310,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message:
@@ -304,7 +325,7 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await verifier
-			.verify("recipient@example.com", "sender@example.com", "mx.example.com")
+			.verify("recipient@example.com", "sender@example.com", ["mx.example.com"])
 			.catch(() => undefined);
 
 		expect(socket.destroy).toHaveBeenCalledOnce();
@@ -320,11 +341,9 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await expect(
-			verifier.verify(
-				"recipient@example.com",
-				"sender@example.com",
+			verifier.verify("recipient@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		).resolves.toEqual({
 			status: "error",
 			message: "An error occurred during connection opening",
@@ -335,11 +354,9 @@ describe("SMTPVerifier", () => {
 		const socket = mockConnection(successfulResponses("250 recipient ok\r\n"));
 		const verifier = new SMTPVerifier();
 
-		await verifier.verify(
-			"recipient@example.com",
-			"sender@example.com",
+		await verifier.verify("recipient@example.com", "sender@example.com", [
 			"mx.example.com",
-		);
+		]);
 
 		expect(socket.end).toHaveBeenCalledOnce();
 	});
@@ -349,7 +366,7 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		await verifier
-			.verify("recipient@example.com", "sender@example.com", "mx.example.com")
+			.verify("recipient@example.com", "sender@example.com", ["mx.example.com"])
 			.catch(() => undefined);
 
 		expect(socket.end).toHaveBeenCalledOnce();
@@ -361,16 +378,12 @@ describe("SMTPVerifier", () => {
 		const verifier = new SMTPVerifier();
 
 		const results = await Promise.all([
-			verifier.verify(
-				"first@example.com",
-				"sender@example.com",
+			verifier.verify("first@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
-			verifier.verify(
-				"second@example.com",
-				"sender@example.com",
+			]),
+			verifier.verify("second@example.com", "sender@example.com", [
 				"mx.example.com",
-			),
+			]),
 		]);
 
 		expect(results).toEqual([

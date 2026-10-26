@@ -1,7 +1,7 @@
 import net, { type Socket } from "node:net";
 import z from "zod";
 
-type SMTPVerificationResult = {
+export type SMTPVerificationResult = {
 	status: "accepted" | "retryable" | "rejected" | "error" | "unknown";
 	code?: number;
 	message: string;
@@ -23,6 +23,34 @@ export class SMTPVerifier {
 	) {}
 
 	async verify(
+		email: string,
+		from: string,
+		mxRecords: string[],
+	): Promise<SMTPVerificationResult> {
+		let lastFailure: SMTPVerificationResult | undefined;
+
+		for (const record of mxRecords) {
+			const result = await this.verifySingleMX(email, from, record);
+
+			if (
+				result.status === "accepted" ||
+				result.status === "rejected" ||
+				result.status === "unknown"
+			)
+				return result;
+
+			lastFailure = result;
+		}
+
+		return (
+			lastFailure ?? {
+				status: "error",
+				message: "No MX records were available.",
+			}
+		);
+	}
+
+	private async verifySingleMX(
 		email: string,
 		from: string,
 		mxDestinationHost: string,

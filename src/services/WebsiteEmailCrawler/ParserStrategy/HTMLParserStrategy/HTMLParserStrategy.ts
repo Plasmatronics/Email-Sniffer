@@ -20,7 +20,7 @@ export class HTMLParserStrategy implements ParserStrategy {
 				const recipients = decodeURIComponent(new URL(href).pathname);
 				$(element).append(new Text(` ${recipients}`));
 			} catch {
-				// Leave malformed mailto links unchanged.
+				console.warn(`Encountered malformed mailto: ${href}`);
 			}
 		});
 

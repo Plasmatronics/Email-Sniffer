@@ -18,7 +18,6 @@ export interface EmailGeneratorDependencies {
 }
 
 export interface EmailGeneratorOptions {
-	fromEmail: string;
 	maxPages: number;
 	catchAllConfidencePenalty: number;
 	catchAllEmailLocalPart: string;

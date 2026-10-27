@@ -16,6 +16,8 @@ export class SMTPVerifier {
 	private readonly socketErrors = new WeakMap<Socket, Error>();
 
 	constructor(
+		private readonly from: string,
+		private readonly ehloHostName: string,
 		private readonly connectionConfig?: Omit<
 			net.NetConnectOpts,
 			"host" | "port"
@@ -24,13 +26,12 @@ export class SMTPVerifier {
 
 	async verify(
 		email: string,
-		from: string,
 		mxRecords: string[],
 	): Promise<SMTPVerificationResult> {
 		let lastFailure: SMTPVerificationResult | undefined;
 
 		for (const record of mxRecords) {
-			const result = await this.verifySingleMX(email, from, record);
+			const result = await this.verifySingleMX(email, record);
 
 			if (
 				result.status === "accepted" ||
@@ -52,7 +53,6 @@ export class SMTPVerifier {
 
 	private async verifySingleMX(
 		email: string,
-		from: string,
 		mxDestinationHost: string,
 	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
@@ -63,15 +63,15 @@ export class SMTPVerifier {
 		let socket: Socket | undefined = undefined;
 
 		try {
-			const ehloHostName = process.env.SMTP_EHLO_HOSTNAME;
-			if (!ehloHostName) throw new Error("No configured ehlo Host Name");
-
 			this.verifyEmail(email);
-			this.verifyEmail(from);
+			this.verifyEmail(this.from);
 
 			socket = await this.openConnection(mxDestinationHost, controller.signal);
 
-			const ehloRes = await this.sendCommand(socket, `EHLO ${ehloHostName}`);
+			const ehloRes = await this.sendCommand(
+				socket,
+				`EHLO ${this.ehloHostName}`,
+			);
 			const parsedehloRes = this.parseSMTPRes(ehloRes);
 			if (parsedehloRes.code !== 250)
 				return {
@@ -80,7 +80,10 @@ export class SMTPVerifier {
 					message: `EHLO failed: ${parsedehloRes.message}`,
 				};
 
-			const mailFromRes = await this.sendCommand(socket, `MAIL FROM:<${from}>`);
+			const mailFromRes = await this.sendCommand(
+				socket,
+				`MAIL FROM:<${this.from}>`,
+			);
 			const parsedMailFrom = this.parseSMTPRes(mailFromRes);
 			if (parsedMailFrom.code !== 250)
 				return {
@@ -103,7 +106,7 @@ export class SMTPVerifier {
 			try {
 				if (socket) await this.closeConnection(socket);
 			} catch (err: unknown) {
-				//if we crash with error during closure, we should still return original finding
+				console.warn("An issue occurred during socket closure");
 			} finally {
 				clearTimeout(globalTimer);
 			}

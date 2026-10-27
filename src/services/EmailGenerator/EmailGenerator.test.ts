@@ -21,7 +21,10 @@ function createGenerator() {
 		new EmailPatternInferrer(new TextChunker()),
 	);
 	const domainValidator = new CompanyDomainValidator();
-	const smtpVerifier = new SMTPVerifier();
+	const smtpVerifier = new SMTPVerifier(
+		"verification@example.com",
+		"test.example",
+	);
 
 	const verify = vi
 		.spyOn(smtpVerifier, "verify")
@@ -57,7 +60,6 @@ function createGenerator() {
 				smtpVerifier,
 			},
 			{
-				fromEmail: "verification@example.com",
 				maxPages: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",

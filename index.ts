@@ -16,9 +16,12 @@ import type { EmailInferenceResults } from "./src/services/EmailGenerator/EmailG
 
 configDotenv({ path: "./.env" });
 
-const fromEmail = process.env.FROM_MAILBOX;
+const { FROM_MAILBOX: fromEmail, SMTP_EHLO_HOSTNAME: ehloHostName } =
+	process.env;
 if (!fromEmail)
 	throw new Error("Missing configuration variable for FROM_MAILBOX");
+if (!ehloHostName)
+	throw new Error("Missing configuration variable for SMTP_EHLO_HOSTNAME");
 
 const emailGenerator = new EmailGenerator(
 	{
@@ -29,10 +32,9 @@ const emailGenerator = new EmailGenerator(
 			new EmailPatternInferrer(new TextChunker()),
 		),
 		domainValidator: new CompanyDomainValidator(),
-		smtpVerifier: new SMTPVerifier(),
+		smtpVerifier: new SMTPVerifier(fromEmail, ehloHostName),
 	},
 	{
-		fromEmail,
 		maxPages: 20,
 		catchAllConfidencePenalty: 20,
 		catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",

@@ -21,8 +21,6 @@ describe("EmailGenerator integration", () => {
 	let createConnectionSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeAll(async () => {
-		vi.stubEnv("SMTP_EHLO_HOSTNAME", "localhost");
-
 		server = net.createServer((socket) => {
 			socket.write("220 localhost ready\r\n");
 			let requestBuffer = "";
@@ -65,7 +63,6 @@ describe("EmailGenerator integration", () => {
 
 	afterAll(async () => {
 		createConnectionSpy.mockRestore();
-		vi.unstubAllEnvs();
 		await new Promise<void>((resolve, reject) => {
 			server.close((error) => (error ? reject(error) : resolve()));
 		});
@@ -100,10 +97,9 @@ describe("EmailGenerator integration", () => {
 				mxRecordRetriever,
 				websiteEmailCrawler,
 				domainValidator: new CompanyDomainValidator(),
-				smtpVerifier: new SMTPVerifier(),
+				smtpVerifier: new SMTPVerifier("verification@example.com", "localhost"),
 			},
 			{
-				fromEmail: "verification@example.com",
 				maxPages: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",

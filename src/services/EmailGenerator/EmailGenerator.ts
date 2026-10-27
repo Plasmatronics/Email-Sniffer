@@ -24,8 +24,6 @@ export class EmailGenerator {
 		emailInfo: SearchInformation,
 	): Promise<EmailInferenceResults> {
 		try {
-			const { fromEmail } = this.options;
-
 			const patternCount = new Map<KnownEmailPattern, number>(
 				Object.values(EmailPattern)
 					.filter((pattern) => pattern !== EmailPattern.Unknown)
@@ -49,7 +47,7 @@ export class EmailGenerator {
 			if (crawledDomainInformationResults.length)
 				domains.push(...crawledDomainInformationResults);
 
-			await this.checkCatchAlls(domains, fromEmail);
+			await this.checkCatchAlls(domains);
 
 			const { topDomains, topPatterns } = this.getTopDomainsAndPatterns(
 				domains,
@@ -61,7 +59,6 @@ export class EmailGenerator {
 				topPatterns,
 				emailInfo.firstName,
 				emailInfo.lastName,
-				fromEmail,
 			);
 
 			return this.normalizeCandidateData(topInferenceCandidate);
@@ -96,8 +93,12 @@ export class EmailGenerator {
 				).confidence,
 				catchAll: "unknown",
 			};
-		} catch {
-			// Continue pipeline, even if direct domain info extraction fails
+		} catch (err: unknown) {
+			console.error(
+				`Failed to retrieve MX records for domain ${domain}: ${
+					err instanceof Error ? err.message : "unknown error"
+				}`,
+			);
 			return null;
 		}
 	}
@@ -170,15 +171,11 @@ export class EmailGenerator {
 		return domainInformationArr.filter((res) => res.mxRecords.length);
 	}
 
-	private async checkCatchAlls(
-		domains: DomainResults[],
-		fromEmail: string,
-	): Promise<void> {
+	private async checkCatchAlls(domains: DomainResults[]): Promise<void> {
 		await Promise.all(
 			domains.map(async (domain) => {
 				const smtpVerification = await this.dependencies.smtpVerifier.verify(
 					`${this.options.catchAllEmailLocalPart}@${domain.domain}`,
-					fromEmail,
 					domain.mxRecords,
 				);
 
@@ -218,7 +215,6 @@ export class EmailGenerator {
 		topPatterns: EmailPattern[],
 		firstName: string,
 		lastName: string,
-		fromEmail: string,
 	): Promise<{
 		email: string;
 		pattern: EmailPattern;
@@ -245,23 +241,42 @@ export class EmailGenerator {
 						domain,
 						verification: await this.dependencies.smtpVerifier.verify(
 							email,
-							fromEmail,
 							domain.mxRecords,
 						),
 					};
 				}),
 			),
 		);
+
 		const successSmtp = smtpRes
 			.filter((smtp) => smtp.status === "fulfilled")
 			.map((res) => res.value);
-		if (!successSmtp.length) throw new Error("No SMTP Promises were fulfilled");
+		if (!successSmtp.length) {
+			const rejectionReasons = smtpRes
+				.filter((res) => res.status === "rejected")
+				.map((res) => res.reason);
+			throw new Error(
+				`No SMTP promises were fulfilled. Reasons: ${
+					rejectionReasons.length ? rejectionReasons.join("; ") : "N/A"
+				}`,
+			);
+		}
 
 		const acceptedSMTPResponses = successSmtp.filter(
 			(res) => res.verification.status === "accepted",
 		);
-		if (!acceptedSMTPResponses.length)
-			throw new Error("No SMTP Requests were accepted");
+		if (!acceptedSMTPResponses.length) {
+			const nonAcceptedDetails = successSmtp
+				.filter((res) => res.verification.status !== "accepted")
+				.map((res) => `${res.email}: ${res.verification.message}`);
+			throw new Error(
+				`No SMTP requests were accepted. Details: ${
+					nonAcceptedDetails.length
+						? nonAcceptedDetails.join("; ")
+						: "All SMTP verifications failed or were rejected."
+				}`,
+			);
+		}
 
 		return acceptedSMTPResponses.sort(
 			(a, b) => b.domain.confidence - a.domain.confidence,

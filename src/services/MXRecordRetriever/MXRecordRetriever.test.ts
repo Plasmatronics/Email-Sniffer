@@ -25,10 +25,11 @@ describe("MXRecordRetriever", () => {
 		resolveMx.mockResolvedValue(mxRecords);
 	});
 
-	test("returns an empty array for an invalid email address", async () => {
+	test("returns an empty array for an invalid domain", async () => {
 		const retriever = new MXRecordRetriever();
 
-		await expect(retriever.findMXRecords("not-an-email")).resolves.toEqual([]);
+		const res = await retriever.findMXRecords("not-an-email");
+		expect(res).toEqual([]);
 	});
 
 	test("queries MX records for the recipient domain", async () => {

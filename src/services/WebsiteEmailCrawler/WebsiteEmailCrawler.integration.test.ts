@@ -64,8 +64,6 @@ describe("WebsiteEmailCrawler integration", () => {
 
 		const res = await crawler.crawl(`${baseUrl}/`, { maxPages: 2 });
 
-		console.log(res);
-
 		expect(res).toEqual({
 			[`${baseUrl}/`]: [
 				{ email: "root@example.com", pattern: EmailPattern.Unknown },

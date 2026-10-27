@@ -1,7 +1,7 @@
 import { MinHeap } from "mnemonist";
 import dns from "node:dns/promises";
 import type { MxRecord } from "node:dns";
-import { validateEmail, extractDomain } from "../../utils";
+import { extractDomain } from "../../utils";
 
 export const MAX_RECORDS = 5;
 export const MIN_RECORDS = 1;
@@ -27,9 +27,10 @@ export class MXRecordRetriever {
 		return Math.min(Math.max(MIN_RECORDS, normalizedCap), MAX_RECORDS);
 	}
 
-	async findMXRecords(mailTo: string): Promise<string[]> {
-		if (!validateEmail(mailTo)) return [];
-		const destinationDomain = extractDomain(mailTo);
+	async findMXRecords(domain: string): Promise<string[]> {
+		const destinationDomain = extractDomain(domain);
+		if (!destinationDomain) return [];
+
 		let res: MxRecord[];
 		try {
 			res = await dns.resolveMx(destinationDomain);

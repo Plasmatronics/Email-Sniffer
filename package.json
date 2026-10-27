@@ -13,7 +13,7 @@
 	"license": "ISC",
 	"author": "Nicholas Bruno",
 	"type": "module",
-	"main": "index.ts",
+	"main": "server.ts",
 	"scripts": {
 		"start": "tsx server.ts",
 		"dev": "tsx watch server.ts",
@@ -39,6 +39,7 @@
 		"axios": "^1.20.0",
 		"cheerio": "^1.2.0",
 		"dotenv": "^18.0.5",
+		"express": "^5.3.0",
 		"mnemonist": "^0.40.5",
 		"pdf-parse": "^2.4.5",
 		"tldts": "^7.4.18",
@@ -46,6 +47,7 @@
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@types/express": "^5.0.6",
 		"@types/node": "^26.6.4",
 		"eslint": "^10.12.0",
 		"eslint-config-prettier": "^10.1.8",

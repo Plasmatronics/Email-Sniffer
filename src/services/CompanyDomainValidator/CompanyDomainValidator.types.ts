@@ -1,8 +1,3 @@
-export interface UnverifiedDomainData {
-	source: string;
-	domain: string;
-}
-
 export interface VerifiedDomainData {
 	confidence: number;
 	domain: string;

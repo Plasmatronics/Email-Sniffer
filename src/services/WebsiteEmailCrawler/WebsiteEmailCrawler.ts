@@ -8,6 +8,8 @@ import { ParserStrategy } from "./ParserStrategy";
 import { MaxHeap } from "mnemonist";
 import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
 import { PAGE_WEIGHTS } from "./pageWeights";
+import { PatternInference } from "../../shared";
+import { EmailPatternInferrer } from "../EmailPatternInferrer";
 
 const MAX_ALLOWED_PAGES = 20;
 const MIN_ALLOWED_PAGES = 1;
@@ -17,21 +19,14 @@ export interface WebsiteEmailCrawlerConfig extends AxiosRequestConfig {
 	maxPages: number;
 }
 
-export interface TraversableAndLinks {
-	traversableLinks: string[];
-	emails: string[];
-}
-
-export type CrawlResult = Record<string, string[]>;
+export type CrawlResult = Record<string, PatternInference[]>;
 
 export class WebsiteEmailCrawler {
 	constructor(
 		private readonly parserStrategies: ParserStrategy[],
 		private readonly emailExtractor: EmailExtractor,
-		private config: WebsiteEmailCrawlerConfig,
-	) {
-		this.config = this.normalizeConfig(config);
-	}
+		private readonly patternInferrer: EmailPatternInferrer,
+	) {}
 
 	private normalizeConfig(
 		config: WebsiteEmailCrawlerConfig,
@@ -56,8 +51,11 @@ export class WebsiteEmailCrawler {
 		};
 	}
 
-	async crawl(url: string): Promise<CrawlResult> {
-		const { maxPages, ...axiosConfig } = this.config;
+	async crawl(
+		url: string,
+		config: WebsiteEmailCrawlerConfig,
+	): Promise<CrawlResult> {
+		const { maxPages, ...axiosConfig } = this.normalizeConfig(config);
 
 		const crawlResults: CrawlResult = {};
 
@@ -105,13 +103,13 @@ export class WebsiteEmailCrawler {
 				continue;
 			}
 
-			const { traversableLinks, emails: linkExtractedEmails } =
-				this.separateTraversableAndEmailLinks(links, poppedUrl);
-			const textExtractedEmails = this.emailExtractor.extractEmails(text);
-			crawlResults[poppedUrl] = [
-				...textExtractedEmails,
-				...linkExtractedEmails,
-			];
+			const traversableLinks = this.getTraversableLinks(links, poppedUrl);
+			const textExtractedEmails = this.emailExtractor.extractEmailMatches(text);
+
+			crawlResults[poppedUrl] = this.patternInferrer.inferEmailPatterns(
+				textExtractedEmails,
+				text,
+			);
 
 			for (const nextLink of traversableLinks) {
 				if (seen.has(nextLink)) continue;
@@ -138,13 +136,9 @@ export class WebsiteEmailCrawler {
 		return crawlResults;
 	}
 
-	private separateTraversableAndEmailLinks(
-		links: string[],
-		baseUrl: string,
-	): TraversableAndLinks {
+	private getTraversableLinks(links: string[], baseUrl: string): string[] {
 		const base = new URL(baseUrl);
 		const traversableLinks = new Set<string>();
-		const emails = new Set<string>();
 
 		for (const link of links) {
 			const href = link.trim();
@@ -154,19 +148,6 @@ export class WebsiteEmailCrawler {
 			try {
 				url = new URL(href, base);
 			} catch {
-				continue;
-			}
-
-			if (url.protocol === "mailto:") {
-				let recipients = url.pathname;
-				try {
-					recipients = decodeURIComponent(recipients);
-				} catch {
-					// Keep the original recipients when percent encoding is malformed.
-				}
-
-				for (const email of this.emailExtractor.extractEmails(recipients))
-					emails.add(email);
 				continue;
 			}
 
@@ -180,10 +161,7 @@ export class WebsiteEmailCrawler {
 			traversableLinks.add(url.toString());
 		}
 
-		return {
-			traversableLinks: [...traversableLinks],
-			emails: [...emails],
-		};
+		return [...traversableLinks];
 	}
 
 	private delegateStrategy(

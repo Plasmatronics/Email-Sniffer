@@ -9,7 +9,6 @@ describe("SMTPVerifier integration", () => {
 	let createConnectionSpy: ReturnType<typeof vi.spyOn>;
 
 	beforeAll(async () => {
-		vi.stubEnv("SMTP_EHLO_HOSTNAME", "localhost");
 		server = net.createServer((socket) => {
 			socket.write("220 localhost ready\r\n");
 			let requestBuffer = "";
@@ -56,16 +55,17 @@ describe("SMTPVerifier integration", () => {
 
 	afterAll(async () => {
 		createConnectionSpy.mockRestore();
-		vi.unstubAllEnvs();
 		await new Promise<void>((resolve, reject) => {
 			server.close((error) => (error ? reject(error) : resolve()));
 		});
 	});
 
 	test("completes an SMTP verification over a real socket", async () => {
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier("sender@example.com", "localhost");
 
-		await expect(verifier.verify("accepted@example.com")).resolves.toEqual({
+		await expect(
+			verifier.verify("accepted@example.com", ["mx.example.com"]),
+		).resolves.toEqual({
 			status: "accepted",
 			code: 250,
 			message: "recipient ok",
@@ -73,11 +73,11 @@ describe("SMTPVerifier integration", () => {
 	});
 
 	test("runs concurrent SMTP verifications on independent sockets", async () => {
-		const verifier = new SMTPVerifier("sender@example.com", "mx.example.com");
+		const verifier = new SMTPVerifier("sender@example.com", "localhost");
 
 		const results = await Promise.all([
-			verifier.verify("accepted@example.com"),
-			verifier.verify("rejected@example.com"),
+			verifier.verify("accepted@example.com", ["mx.example.com"]),
+			verifier.verify("rejected@example.com", ["mx.example.com"]),
 		]);
 
 		expect(results.map(({ status }) => status)).toEqual([

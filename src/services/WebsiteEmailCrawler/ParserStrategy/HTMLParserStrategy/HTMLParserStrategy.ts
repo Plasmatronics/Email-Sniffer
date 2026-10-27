@@ -1,4 +1,5 @@
 import * as cheerio from "cheerio";
+import { Text } from "domhandler";
 import { ParsedResults, ParserStrategy } from "../parserStrategy.types";
 
 export class HTMLParserStrategy implements ParserStrategy {
@@ -10,6 +11,18 @@ export class HTMLParserStrategy implements ParserStrategy {
 		const $ = cheerio.loadBuffer(content);
 
 		$("script, style, noscript, template, svg").remove();
+
+		$("a[href]").each((_, element) => {
+			const href = $(element).attr("href");
+			if (!href?.toLowerCase().startsWith("mailto:")) return;
+
+			try {
+				const recipients = decodeURIComponent(new URL(href).pathname);
+				$(element).append(new Text(` ${recipients}`));
+			} catch {
+				console.warn(`Encountered malformed mailto: ${href}`);
+			}
+		});
 
 		$("body *").each((_, element) => {
 			$(element).before("\n");

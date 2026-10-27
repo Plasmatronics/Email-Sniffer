@@ -1,7 +1,7 @@
 import net, { type Socket } from "node:net";
 import z from "zod";
 
-type SMTPVerificationResult = {
+export type SMTPVerificationResult = {
 	status: "accepted" | "retryable" | "rejected" | "error" | "unknown";
 	code?: number;
 	message: string;
@@ -17,14 +17,44 @@ export class SMTPVerifier {
 
 	constructor(
 		private readonly from: string,
-		private readonly mxDestinationHost: string,
+		private readonly ehloHostName: string,
 		private readonly connectionConfig?: Omit<
 			net.NetConnectOpts,
 			"host" | "port"
 		>,
 	) {}
 
-	async verify(email: string): Promise<SMTPVerificationResult> {
+	async verify(
+		email: string,
+		mxRecords: string[],
+	): Promise<SMTPVerificationResult> {
+		let lastFailure: SMTPVerificationResult | undefined;
+
+		for (const record of mxRecords) {
+			const result = await this.verifySingleMX(email, record);
+
+			if (
+				result.status === "accepted" ||
+				result.status === "rejected" ||
+				result.status === "unknown"
+			)
+				return result;
+
+			lastFailure = result;
+		}
+
+		return (
+			lastFailure ?? {
+				status: "error",
+				message: "No MX records were available.",
+			}
+		);
+	}
+
+	private async verifySingleMX(
+		email: string,
+		mxDestinationHost: string,
+	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
 		const globalTimer = setTimeout(() => {
 			controller.abort(new Error("SMTP verification exceeded 45 seconds"));
@@ -33,15 +63,15 @@ export class SMTPVerifier {
 		let socket: Socket | undefined = undefined;
 
 		try {
-			const ehloHostName = process.env.SMTP_EHLO_HOSTNAME;
-			if (!ehloHostName) throw new Error("No configured ehlo Host Name");
-
 			this.verifyEmail(email);
 			this.verifyEmail(this.from);
 
-			socket = await this.openConnection(controller.signal);
+			socket = await this.openConnection(mxDestinationHost, controller.signal);
 
-			const ehloRes = await this.sendCommand(socket, `EHLO ${ehloHostName}`);
+			const ehloRes = await this.sendCommand(
+				socket,
+				`EHLO ${this.ehloHostName}`,
+			);
 			const parsedehloRes = this.parseSMTPRes(ehloRes);
 			if (parsedehloRes.code !== 250)
 				return {
@@ -76,7 +106,7 @@ export class SMTPVerifier {
 			try {
 				if (socket) await this.closeConnection(socket);
 			} catch (err: unknown) {
-				//if we crash with error during closure, we should still return original finding
+				console.warn("An issue occurred during socket closure");
 			} finally {
 				clearTimeout(globalTimer);
 			}
@@ -227,12 +257,15 @@ export class SMTPVerifier {
 		}
 	}
 
-	private openConnection(abortSignal: AbortSignal): Promise<Socket> {
+	private openConnection(
+		mxDestinationHost: string,
+		abortSignal: AbortSignal,
+	): Promise<Socket> {
 		return new Promise((resolve, reject) => {
 			const socket = net.createConnection({
 				timeout: DEFAULT_TIMEOUT,
 				...(this.connectionConfig ?? {}),
-				host: this.mxDestinationHost,
+				host: mxDestinationHost,
 				port: 25,
 				signal: abortSignal,
 			});

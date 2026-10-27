@@ -184,7 +184,7 @@ describe("EmailPatternInferrer", () => {
 		expect(inferences).toEqual([]);
 	});
 
-	test("returns no inference when the local part does not match nearby names", () => {
+	test("returns an unknown pattern when the local part does not match nearby names", () => {
 		const inferrer = createInferrer();
 		const email = "support@example.com";
 
@@ -193,7 +193,7 @@ describe("EmailPatternInferrer", () => {
 			`Alice Brown ${email}`,
 		);
 
-		expect(inferences).toEqual([]);
+		expect(inferences).toEqual([{ email, pattern: EmailPattern.Unknown }]);
 	});
 
 	test("returns no inferences when no emails were extracted", () => {

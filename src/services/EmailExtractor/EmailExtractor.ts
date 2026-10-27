@@ -23,7 +23,7 @@ export class EmailExtractor {
 	) {}
 
 	extractEmails(text: string): string[] {
-		const clampedText = this.documentClamper.clamp(text.trim());
+		const clampedText = this.documentClamper.clamp(text.trim().toLowerCase());
 		const emailMatches = clampedText.match(EMAIL_REGEX) ?? [];
 
 		const uniqueEmails = [...new Set(emailMatches)];
@@ -31,7 +31,7 @@ export class EmailExtractor {
 	}
 
 	extractEmailMatches(text: string): ExtractedEmail[] {
-		const clampedText = this.documentClamper.clamp(text.trim());
+		const clampedText = this.documentClamper.clamp(text.trim().toLowerCase());
 		const words = this.textChunker.chunk(clampedText);
 
 		const results: ExtractedEmail[] = [];

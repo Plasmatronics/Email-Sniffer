@@ -2,8 +2,12 @@ import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { EmailExtractor } from "../EmailExtractor";
+import { EmailPatternInferrer } from "../EmailPatternInferrer";
+import { TextChunker } from "../TextChunker";
 import { HTMLParserStrategy } from "./ParserStrategy";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
+import { DocumentClamper } from "../DocumentClamper";
+import { EmailPattern } from "../../shared";
 
 describe("WebsiteEmailCrawler integration", () => {
 	let baseUrl: string;
@@ -54,13 +58,22 @@ describe("WebsiteEmailCrawler integration", () => {
 	test("crawls same-origin HTML pages through the real service stack", async () => {
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
-			new EmailExtractor(),
-			{ maxPages: 2 },
+			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			new EmailPatternInferrer(new TextChunker()),
 		);
 
-		await expect(crawler.crawl(`${baseUrl}/`)).resolves.toEqual({
-			[`${baseUrl}/`]: ["root@example.com", "linked@example.com"],
-			[`${baseUrl}/contact`]: ["contact@example.com"],
+		const res = await crawler.crawl(`${baseUrl}/`, { maxPages: 2 });
+
+		console.log(res);
+
+		expect(res).toEqual({
+			[`${baseUrl}/`]: [
+				{ email: "root@example.com", pattern: EmailPattern.Unknown },
+				{ pattern: "unknown", email: "linked@example.com" },
+			],
+			[`${baseUrl}/contact`]: [
+				{ email: "contact@example.com", pattern: EmailPattern.Unknown },
+			],
 		});
 	});
 
@@ -68,11 +81,13 @@ describe("WebsiteEmailCrawler integration", () => {
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		const crawler = new WebsiteEmailCrawler(
 			[new HTMLParserStrategy()],
-			new EmailExtractor(),
-			{ maxPages: 1 },
+			new EmailExtractor(new TextChunker(), new DocumentClamper()),
+			new EmailPatternInferrer(new TextChunker()),
 		);
 
-		await expect(crawler.crawl(`${baseUrl}/redirect`)).resolves.toEqual({});
+		await expect(
+			crawler.crawl(`${baseUrl}/redirect`, { maxPages: 1 }),
+		).resolves.toEqual({});
 		expect(warn).toHaveBeenCalledOnce();
 	});
 });

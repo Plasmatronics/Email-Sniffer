@@ -1,7 +1,6 @@
 import { getDomainWithoutSuffix, getFullDomain } from "tldts";
 import {
 	DomainValidatorConfig,
-	UnverifiedDomainData,
 	VerificationResult,
 	VerifiedDomainData,
 } from "./CompanyDomainValidator.types";
@@ -21,20 +20,22 @@ export const FOUND_ON_COMPANY_PAGE_MIN_SCORE = 15;
 
 export class CompanyDomainValidator {
 	constructor(
-		private unverifiedDomainData: UnverifiedDomainData,
-		private companyUrl: string,
 		private domainValidatorConfig: DomainValidatorConfig = DEFAULT_DOMAIN_VALIDATOR_CONFIG,
 	) {}
 
-	validateDomain(): VerifiedDomainData {
+	validateDomain(
+		source: string,
+		domain: string,
+		companyUrl: string,
+	): VerifiedDomainData {
 		let confidence = 0;
-		confidence = this.validateDomainSource(confidence);
-		confidence = this.validateSubstringMatch(confidence);
+		confidence = this.validateDomainSource(confidence, source, companyUrl);
+		confidence = this.validateSubstringMatch(confidence, domain, companyUrl);
 
 		return {
 			confidence: confidence,
 			verificationResult: this.getVerificationResult(confidence),
-			domain: this.unverifiedDomainData.domain,
+			domain: domain,
 		};
 	}
 
@@ -50,11 +51,13 @@ export class CompanyDomainValidator {
 		return Math.min(Math.max(0, confidence + amount), 100);
 	}
 
-	private validateDomainSource(confidence: number): number {
-		const normalizedSourceUrl = this.normalizeUrlToDomain(
-			this.unverifiedDomainData.source,
-		);
-		const normalizedCompanyUrl = this.normalizeUrlToDomain(this.companyUrl);
+	private validateDomainSource(
+		confidence: number,
+		source: string,
+		companyUrl: string,
+	): number {
+		const normalizedSourceUrl = this.normalizeUrlToDomain(source);
+		const normalizedCompanyUrl = this.normalizeUrlToDomain(companyUrl);
 		if (!normalizedSourceUrl || !normalizedCompanyUrl) {
 			if (!normalizedSourceUrl)
 				console.warn(
@@ -69,9 +72,7 @@ export class CompanyDomainValidator {
 
 		let addedConfidence = 0;
 		if (normalizedCompanyUrl === normalizedSourceUrl)
-			addedConfidence += this.getUrlConfidenceScore(
-				this.unverifiedDomainData.source,
-			);
+			addedConfidence += this.getUrlConfidenceScore(source);
 
 		return this.updateConfidence(confidence, addedConfidence);
 	}
@@ -94,9 +95,13 @@ export class CompanyDomainValidator {
 		}
 	}
 
-	private validateSubstringMatch(confidence: number): number {
-		const companyUrlOriginal = this.normalizeUrlToDomain(this.companyUrl);
-		const unverifiedDomainOriginal = this.unverifiedDomainData.domain;
+	private validateSubstringMatch(
+		confidence: number,
+		domain: string,
+		companyUrl: string,
+	): number {
+		const companyUrlOriginal = this.normalizeUrlToDomain(companyUrl);
+		const unverifiedDomainOriginal = domain;
 		if (!companyUrlOriginal) {
 			console.warn(
 				`Could not extract domain from company URL: "${companyUrlOriginal}".`,

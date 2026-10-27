@@ -78,6 +78,20 @@ describe("WebsiteEmailCrawler", () => {
 		});
 	});
 
+	test("retains an extracted email when no employee pattern can be inferred", async () => {
+		parse.mockResolvedValue({
+			links: [],
+			text: "Please email privacy@example.com",
+		});
+		const crawler = createCrawler();
+
+		await expect(crawler.crawl(SEED_URL, { maxPages: 1 })).resolves.toEqual({
+			[SEED_URL]: [
+				{ email: "privacy@example.com", pattern: EmailPattern.Unknown },
+			],
+		});
+	});
+
 	test("traverses each normalized same-origin HTTP link once", async () => {
 		parse
 			.mockResolvedValueOnce({

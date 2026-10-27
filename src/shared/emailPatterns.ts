@@ -13,11 +13,16 @@ export enum EmailPattern {
 	LastNameFirstInitial = "{lastName}{firstInitial}",
 	LastName = "{lastName}",
 	FirstInitialLastInitial = "{firstInitial}{lastInitial}",
+	Unknown = "unknown",
 }
 
 type GenerateEmail = (firstName: string, lastName: string) => string;
+export type KnownEmailPattern = Exclude<EmailPattern, EmailPattern.Unknown>;
 
-export const generateEmailLocalPartMap: Record<EmailPattern, GenerateEmail> = {
+export const generateEmailLocalPartMap: Record<
+	KnownEmailPattern,
+	GenerateEmail
+> = {
 	[EmailPattern.FirstNameDotLastName]: (firstName, lastName) =>
 		`${firstName}.${lastName}`,
 	[EmailPattern.FirstInitialLastName]: (firstName, lastName) =>

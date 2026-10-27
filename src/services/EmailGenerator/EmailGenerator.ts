@@ -1,4 +1,8 @@
-import { EmailPattern, generateEmailLocalPartMap } from "../../shared";
+import {
+	EmailPattern,
+	generateEmailLocalPartMap,
+	KnownEmailPattern,
+} from "../../shared";
 import { extractDomain } from "../../utils";
 import { VerificationResult } from "../CompanyDomainValidator";
 import { SMTPVerificationResult } from "../SMTPVerifier";
@@ -22,8 +26,10 @@ export class EmailGenerator {
 		try {
 			const { fromEmail } = this.options;
 
-			const patternCount = new Map<EmailPattern, number>(
-				Object.values(EmailPattern).map((pattern) => [pattern, 0]),
+			const patternCount = new Map<KnownEmailPattern, number>(
+				Object.values(EmailPattern)
+					.filter((pattern) => pattern !== EmailPattern.Unknown)
+					.map((pattern) => [pattern, 0]),
 			);
 			const domains: DomainResults[] = [];
 			const seenDomains = new Set<string>();
@@ -127,10 +133,12 @@ export class EmailGenerator {
 					if (validationResults.verificationResult !== VerificationResult.Pass)
 						return null;
 
-					patternMap.set(
-						emailAndPattern.pattern,
-						(patternMap.get(emailAndPattern.pattern) ?? 0) + 1,
-					);
+					if (emailAndPattern.pattern !== EmailPattern.Unknown) {
+						patternMap.set(
+							emailAndPattern.pattern,
+							(patternMap.get(emailAndPattern.pattern) ?? 0) + 1,
+						);
+					}
 
 					if (seenDomains.has(domain)) return null;
 
@@ -220,6 +228,11 @@ export class EmailGenerator {
 		const smtpRes = await Promise.allSettled(
 			topDomains.flatMap((domain) =>
 				topPatterns.map(async (pattern) => {
+					if (pattern === EmailPattern.Unknown)
+						throw new Error(
+							"Could not complete verfication for this email as it is based off of an unknown pattern",
+						);
+
 					const emailLocalPart = generateEmailLocalPartMap[pattern](
 						firstName,
 						lastName,

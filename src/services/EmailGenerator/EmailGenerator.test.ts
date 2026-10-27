@@ -133,4 +133,35 @@ describe("EmailGenerator", () => {
 			),
 		).toHaveLength(1);
 	});
+
+	test("does not count unknown patterns when selecting a pattern", async () => {
+		const { generator, mxRecordRetriever, websiteEmailCrawler } =
+			createGenerator();
+		vi.spyOn(mxRecordRetriever, "findMXRecords").mockResolvedValue([
+			"mx.example.com",
+		]);
+		vi.spyOn(websiteEmailCrawler, "crawl").mockResolvedValue({
+			[`${COMPANY_URL}/privacy`]: [
+				{ email: "privacy@example.com", pattern: EmailPattern.Unknown },
+				{ email: "privacy2@example.com", pattern: EmailPattern.Unknown },
+			],
+			[`${COMPANY_URL}/contact`]: [
+				{
+					email: "alice.smith@example.com",
+					pattern: EmailPattern.FirstNameDotLastName,
+				},
+			],
+		});
+
+		await expect(
+			generator.inferEmail({
+				firstName: "alice",
+				lastName: "smith",
+				companyUrl: COMPANY_URL,
+			}),
+		).resolves.toMatchObject({
+			success: true,
+			pattern: EmailPattern.FirstNameDotLastName,
+		});
+	});
 });

@@ -76,7 +76,7 @@ export class EmailPatternInferrer {
 			}
 		}
 
-		return undefined;
+		return { pattern: EmailPattern.Unknown, email };
 	}
 
 	private getNameCandidates(words: string[]): [string, string][] {

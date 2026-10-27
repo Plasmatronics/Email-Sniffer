@@ -7,6 +7,7 @@ import { TextChunker } from "../TextChunker";
 import { HTMLParserStrategy } from "./ParserStrategy";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
 import { DocumentClamper } from "../DocumentClamper";
+import { EmailPattern } from "../../shared";
 
 describe("WebsiteEmailCrawler integration", () => {
 	let baseUrl: string;
@@ -61,11 +62,18 @@ describe("WebsiteEmailCrawler integration", () => {
 			new EmailPatternInferrer(new TextChunker()),
 		);
 
-		await expect(
-			crawler.crawl(`${baseUrl}/`, { maxPages: 2 }),
-		).resolves.toEqual({
-			[`${baseUrl}/`]: [],
-			[`${baseUrl}/contact`]: [],
+		const res = await crawler.crawl(`${baseUrl}/`, { maxPages: 2 });
+
+		console.log(res);
+
+		expect(res).toEqual({
+			[`${baseUrl}/`]: [
+				{ email: "root@example.com", pattern: EmailPattern.Unknown },
+				{ pattern: "unknown", email: "linked@example.com" },
+			],
+			[`${baseUrl}/contact`]: [
+				{ email: "contact@example.com", pattern: EmailPattern.Unknown },
+			],
 		});
 	});
 

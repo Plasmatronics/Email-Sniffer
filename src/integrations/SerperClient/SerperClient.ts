@@ -1,53 +1,67 @@
 import axios from "axios";
 import { SerperResponseSchema } from "./serperSchemas";
-import { WebSearchResult } from "../../types";
+import { HealthCheck, SnifferIntegration, WebSearchResult } from "../../types";
 
 export interface WebSearchClient {
 	search(query: string): Promise<WebSearchResult[]>;
 }
 
-interface HttpClient {
-	post(
-		url: string,
-		body: unknown,
-		headers?: Record<string, string>,
-	): Promise<unknown>;
-}
+export class SerperClient implements WebSearchClient, SnifferIntegration {
+	private readonly service = "SerperClient";
 
-const axiosHttpClient: HttpClient = {
-	async post(url, body, headers) {
-		const response = await axios.post(url, body, { headers });
-		return response.data;
-	},
-};
+	constructor(private readonly apiKey: string) {}
 
-export class SerperClient implements WebSearchClient {
-	constructor(
-		private readonly apiKey: string,
-		private readonly httpClient = axiosHttpClient,
-	) {}
-
-	public async search(query: string): Promise<WebSearchResult[]> {
+	async search(query: string): Promise<WebSearchResult[]> {
 		try {
-			const data = JSON.stringify({
+			const data = {
 				q: query,
-			});
+			};
 
-			const res = await this.httpClient.post(
+			const response = await axios.post(
 				"https://google.serper.dev/search",
 				data,
 				{
-					"X-API-KEY": this.apiKey,
-					"Content-Type": "application/json",
+					headers: {
+						"X-API-KEY": this.apiKey,
+						"Content-Type": "application/json",
+					},
 				},
 			);
-			const parsedApiRes = SerperResponseSchema.parse(res);
+			const parsedApiRes = SerperResponseSchema.parse(response.data);
 			return parsedApiRes.organic;
 		} catch (err: unknown) {
 			throw new Error(
 				`An error has occurred during web search: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
 				{ cause: err },
 			);
+		}
+	}
+
+	async healthCheck(): Promise<HealthCheck> {
+		const startTime = Date.now();
+		try {
+			const response = await axios.head(
+				"https://connectivitycheck.gstatic.com/generate_204",
+				{
+					signal: AbortSignal.timeout(3000),
+				},
+			);
+
+			if (response.status !== 204)
+				throw new Error(`Unexpected connectivity response: ${response.status}`);
+
+			return {
+				isHealthy: true,
+				requestTime: Date.now() - startTime,
+				service: this.service,
+			};
+		} catch (err: unknown) {
+			return {
+				isHealthy: false,
+				requestTime: Date.now() - startTime,
+				service: this.service,
+				message: `An error occurred while health testing ${this.service}: ${err instanceof Error ? err.message : "Unable to connect to the internet"}`,
+			};
 		}
 	}
 }

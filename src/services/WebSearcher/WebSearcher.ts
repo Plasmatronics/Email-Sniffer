@@ -4,18 +4,15 @@ import { WebSearchResult } from "../../types";
 const QUERY_ADDONS = ["filetype:pdf", "contact"];
 
 export class WebSearcher {
-	constructor(
-		private readonly webSearchClient: WebSearchClient,
-		private readonly baseQuery: string,
-	) {}
+	constructor(private readonly webSearchClient: WebSearchClient) {}
 
-	private createSearchQueries(): string[] {
-		return QUERY_ADDONS.map((addOn) => `${this.baseQuery} ${addOn}`);
+	private createSearchQueries(baseQuery: string): string[] {
+		return QUERY_ADDONS.map((addOn) => `${baseQuery} ${addOn}`);
 	}
 
-	public async fetchResults(): Promise<WebSearchResult[]> {
+	public async fetchResults(baseQuery: string): Promise<WebSearchResult[]> {
 		try {
-			const queries = this.createSearchQueries();
+			const queries = this.createSearchQueries(baseQuery);
 			const searchResults = await Promise.allSettled(
 				queries.map((query) => this.webSearchClient.search(query)),
 			);

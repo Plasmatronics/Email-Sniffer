@@ -1,23 +1,23 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import {
 	VerificationResult,
-	type DomainValidatorConfig,
-} from "./CompanyDomainValidator.types";
+	type DomainConfidenceScorerConfig,
+} from "./DomainConfidenceScorer.types";
 import {
-	CompanyDomainValidator,
+	DomainConfidenceScorer,
 	FOUND_ON_COMPANY_PAGE_MIN_SCORE,
-} from "./CompanyDomainValidator";
+} from "./DomainConfidenceScorer";
 
 const COMPANY_URL = "https://www.wonderlabs.com";
 
-interface ValidatorOptions {
+interface ScorerOptions {
 	source?: string;
 	domain?: string;
 	companyUrl?: string;
-	config?: DomainValidatorConfig;
+	config?: DomainConfidenceScorerConfig;
 }
 
-describe("CompanyDomainValidator", () => {
+describe("DomainConfidenceScorer", () => {
 	afterEach(() => {
 		vi.restoreAllMocks();
 	});
@@ -27,12 +27,11 @@ describe("CompanyDomainValidator", () => {
 		domain = "wonder.com",
 		companyUrl = COMPANY_URL,
 		config,
-	}: ValidatorOptions = {}) {
-		const validator = new CompanyDomainValidator(config);
+	}: ScorerOptions = {}) {
+		const scorer = new DomainConfidenceScorer(config);
 
 		return {
-			validateDomain: () =>
-				validator.validateDomain(source, domain, companyUrl),
+			validateDomain: () => scorer.validateDomain(source, domain, companyUrl),
 		};
 	}
 

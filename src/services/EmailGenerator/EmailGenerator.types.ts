@@ -1,7 +1,8 @@
 import { EmailPattern } from "../../shared";
-import { CompanyDomainValidator } from "../CompanyDomainValidator";
+import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
+import { WebSearcher } from "../WebSearcher";
 import { WebsiteEmailCrawler } from "../WebsiteEmailCrawler";
 
 export interface SearchInformation {
@@ -13,12 +14,13 @@ export interface SearchInformation {
 export interface EmailGeneratorDependencies {
 	mxRecordRetriever: MXRecordRetriever;
 	websiteEmailCrawler: WebsiteEmailCrawler;
-	domainValidator: CompanyDomainValidator;
+	domainConfidenceScorer: DomainConfidenceScorer;
 	smtpVerifier: SMTPVerifier;
+	webSearcher: WebSearcher;
 }
 
 export interface EmailGeneratorOptions {
-	maxPages: number;
+	companyUrlPagesSearchNum: number;
 	catchAllConfidencePenalty: number;
 	catchAllEmailLocalPart: string;
 	numPatternsToVerify: number;
@@ -32,6 +34,7 @@ export interface DomainResults {
 	mxRecords: string[];
 	confidence: number;
 	catchAll: CatchAllStatus;
+	count: number;
 }
 
 export interface SuccessfulEmailInferenceResults {

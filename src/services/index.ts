@@ -1,5 +1,5 @@
 export * from "./MXRecordRetriever";
-export * from "./CompanyDomainValidator";
+export * from "./DomainConfidenceScorer";
 export * from "./WebSearcher";
 export * from "./EmailExtractor";
 export * from "./WebsiteEmailCrawler";

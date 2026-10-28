@@ -6,6 +6,7 @@ export interface WebSearchClient {
 	search(query: string): Promise<WebSearchResult[]>;
 }
 
+//20 searches supported per given query
 export class SerperClient implements WebSearchClient, SnifferIntegration {
 	private readonly service = "SerperClient";
 

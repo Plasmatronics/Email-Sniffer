@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { CompanyDomainValidator } from "../CompanyDomainValidator";
+import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
 import { EmailPattern } from "../../shared";
@@ -10,6 +10,8 @@ import { TextChunker } from "../TextChunker";
 import { WebsiteEmailCrawler } from "../WebsiteEmailCrawler";
 import { validateEmail } from "../../utils";
 import { EmailGenerator } from "./EmailGenerator";
+import { WebSearcher } from "../WebSearcher";
+import { SerperClient } from "../../integrations";
 
 const COMPANY_URL = "https://example.com";
 
@@ -20,10 +22,13 @@ function createGenerator() {
 		new EmailExtractor(new TextChunker(), new DocumentClamper()),
 		new EmailPatternInferrer(new TextChunker()),
 	);
-	const domainValidator = new CompanyDomainValidator();
+	const domainConfidenceScorer = new DomainConfidenceScorer();
 	const smtpVerifier = new SMTPVerifier(
 		"verification@example.com",
 		"test.example",
+	);
+	const webSearcher = new WebSearcher(
+		new SerperClient(process.env.SERPER_API_KEY!),
 	);
 
 	const verify = vi
@@ -56,11 +61,12 @@ function createGenerator() {
 			{
 				mxRecordRetriever,
 				websiteEmailCrawler,
-				domainValidator,
+				domainConfidenceScorer,
 				smtpVerifier,
+				webSearcher,
 			},
 			{
-				maxPages: 20,
+				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,

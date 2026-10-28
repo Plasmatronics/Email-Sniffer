@@ -4,7 +4,7 @@ export interface VerifiedDomainData {
 	verificationResult: VerificationResult;
 }
 
-export interface DomainValidatorConfig {
+export interface DomainConfidenceScorerConfig {
 	substringMatchPassThreshold: number;
 	overallPassThreshold: number;
 	overallFailMaximum: number;

@@ -24,9 +24,9 @@ describe("WebSearcher", () => {
 
 	test("searches for PDF and contact results", async () => {
 		search.mockResolvedValue([]);
-		const searcher = new WebSearcher({ search }, "Example Company");
+		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults()).rejects.toThrow();
+		await expect(searcher.fetchResults("Example Company")).rejects.toThrow();
 
 		expect(search.mock.calls).toEqual([
 			["Example Company filetype:pdf"],
@@ -38,9 +38,9 @@ describe("WebSearcher", () => {
 		search
 			.mockResolvedValueOnce([pdfResult])
 			.mockResolvedValueOnce([contactResult]);
-		const searcher = new WebSearcher({ search }, "Example Company");
+		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults()).resolves.toEqual([
+		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([
 			pdfResult,
 			contactResult,
 		]);
@@ -52,26 +52,28 @@ describe("WebSearcher", () => {
 			.mockRejectedValueOnce(searchError)
 			.mockResolvedValueOnce([contactResult]);
 		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		const searcher = new WebSearcher({ search }, "Example Company");
+		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults()).resolves.toEqual([contactResult]);
+		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([
+			contactResult,
+		]);
 		expect(warn).toHaveBeenCalledWith(searchError);
 	});
 
 	test("rejects when every query fails", async () => {
 		search.mockRejectedValue(new Error("Search request failed"));
-		const searcher = new WebSearcher({ search }, "Example Company");
+		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults()).rejects.toThrow(
+		await expect(searcher.fetchResults("Example Company")).rejects.toThrow(
 			"An error occurred while fetching results: Could not retrieve any search results",
 		);
 	});
 
 	test("rejects when successful queries return no results", async () => {
 		search.mockResolvedValue([]);
-		const searcher = new WebSearcher({ search }, "Example Company");
+		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults()).rejects.toThrow(
+		await expect(searcher.fetchResults("Example Company")).rejects.toThrow(
 			"An error occurred while fetching results: Could not retrieve any search results",
 		);
 	});

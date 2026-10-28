@@ -2,7 +2,7 @@ import { configDotenv } from "dotenv";
 import express from "express";
 import z from "zod";
 import {
-	CompanyDomainValidator,
+	DomainConfidenceScorer,
 	DocumentClamper,
 	EmailExtractor,
 	EmailGenerator,
@@ -15,6 +15,7 @@ import {
 	SerperClient,
 	SnifferIntegration,
 	EmailPatternInferrer,
+	WebSearcher,
 } from "./src";
 
 configDotenv({ path: "./.env" });
@@ -51,11 +52,12 @@ const emailGenerator = new EmailGenerator(
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
 		),
-		domainValidator: new CompanyDomainValidator(),
+		domainConfidenceScorer: new DomainConfidenceScorer(),
 		smtpVerifier: new SMTPVerifier(fromEmail, ehloHostName),
+		webSearcher: new WebSearcher(new SerperClient(apiKey)),
 	},
 	{
-		maxPages: 20,
+		companyUrlPagesSearchNum: 20,
 		catchAllConfidencePenalty: 20,
 		catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 		numPatternsToVerify: 5,

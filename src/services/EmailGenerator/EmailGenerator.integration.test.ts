@@ -1,7 +1,7 @@
 import net, { type AddressInfo, type Server } from "node:net";
 import axios, { type AxiosResponse } from "axios";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import { CompanyDomainValidator } from "../CompanyDomainValidator";
+import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
 import { EmailPattern } from "../../shared";
@@ -15,6 +15,8 @@ import {
 	PDFParserStrategy,
 } from "../WebsiteEmailCrawler/ParserStrategy";
 import { EmailGenerator } from "./EmailGenerator";
+import { WebSearcher } from "../WebSearcher";
+import { SerperClient } from "../../integrations";
 
 describe("EmailGenerator integration", () => {
 	let server: Server;
@@ -96,11 +98,14 @@ describe("EmailGenerator integration", () => {
 			{
 				mxRecordRetriever,
 				websiteEmailCrawler,
-				domainValidator: new CompanyDomainValidator(),
+				domainConfidenceScorer: new DomainConfidenceScorer(),
 				smtpVerifier: new SMTPVerifier("verification@example.com", "localhost"),
+				webSearcher: new WebSearcher(
+					new SerperClient(process.env.SERPER_API_KEY!),
+				),
 			},
 			{
-				maxPages: 20,
+				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,

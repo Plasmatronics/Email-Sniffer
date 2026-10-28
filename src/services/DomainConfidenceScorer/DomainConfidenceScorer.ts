@@ -1,13 +1,13 @@
 import { getDomainWithoutSuffix, getFullDomain } from "tldts";
 import {
-	DomainValidatorConfig,
+	DomainConfidenceScorerConfig,
 	VerificationResult,
 	VerifiedDomainData,
-} from "./CompanyDomainValidator.types";
+} from "./DomainConfidenceScorer.types";
 import { TRUSTED_PAGE_PATHS } from "./trustedPagePaths";
 import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
 
-const DEFAULT_DOMAIN_VALIDATOR_CONFIG = {
+const DEFAULT_DOMAIN_CONFIDENCE_SCORER_CONFIG = {
 	substringMatchPassThreshold: 50,
 	overallPassThreshold: 65,
 	overallFailMaximum: 20,
@@ -18,9 +18,9 @@ export const SUBSTRING_MATCH_CONFIDENCE_INCREASE = 25;
 const PERFECT_OVERLAP = 100;
 export const FOUND_ON_COMPANY_PAGE_MIN_SCORE = 15;
 
-export class CompanyDomainValidator {
+export class DomainConfidenceScorer {
 	constructor(
-		private domainValidatorConfig: DomainValidatorConfig = DEFAULT_DOMAIN_VALIDATOR_CONFIG,
+		private domainConfidenceScorerConfig: DomainConfidenceScorerConfig = DEFAULT_DOMAIN_CONFIDENCE_SCORER_CONFIG,
 	) {}
 
 	validateDomain(
@@ -40,9 +40,9 @@ export class CompanyDomainValidator {
 	}
 
 	private getVerificationResult(confidence: number): VerificationResult {
-		if (confidence >= this.domainValidatorConfig.overallPassThreshold)
+		if (confidence >= this.domainConfidenceScorerConfig.overallPassThreshold)
 			return VerificationResult.Pass;
-		else if (confidence <= this.domainValidatorConfig.overallFailMaximum)
+		else if (confidence <= this.domainConfidenceScorerConfig.overallFailMaximum)
 			return VerificationResult.Fail;
 		else return VerificationResult.Uncertain;
 	}
@@ -147,7 +147,7 @@ export class CompanyDomainValidator {
 			return this.updateConfidence(confidence, 100);
 		else if (
 			overlapPercentage >=
-			this.domainValidatorConfig.substringMatchPassThreshold
+			this.domainConfidenceScorerConfig.substringMatchPassThreshold
 		)
 			return this.updateConfidence(
 				confidence,

@@ -2,7 +2,7 @@ import { configDotenv } from "dotenv";
 import express from "express";
 import z from "zod";
 import {
-	CompanyDomainValidator,
+	DomainConfidenceScorer,
 	DocumentClamper,
 	EmailExtractor,
 	EmailGenerator,
@@ -51,7 +51,7 @@ const emailGenerator = new EmailGenerator(
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
 		),
-		domainValidator: new CompanyDomainValidator(),
+		domainConfidenceScorer: new DomainConfidenceScorer(),
 		smtpVerifier: new SMTPVerifier(fromEmail, ehloHostName),
 	},
 	{

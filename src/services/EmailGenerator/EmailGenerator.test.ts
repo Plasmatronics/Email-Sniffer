@@ -1,5 +1,5 @@
 import { describe, expect, test, vi } from "vitest";
-import { CompanyDomainValidator } from "../CompanyDomainValidator";
+import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
 import { EmailPattern } from "../../shared";
@@ -20,7 +20,7 @@ function createGenerator() {
 		new EmailExtractor(new TextChunker(), new DocumentClamper()),
 		new EmailPatternInferrer(new TextChunker()),
 	);
-	const domainValidator = new CompanyDomainValidator();
+	const domainConfidenceScorer = new DomainConfidenceScorer();
 	const smtpVerifier = new SMTPVerifier(
 		"verification@example.com",
 		"test.example",
@@ -56,11 +56,11 @@ function createGenerator() {
 			{
 				mxRecordRetriever,
 				websiteEmailCrawler,
-				domainValidator,
+				domainConfidenceScorer,
 				smtpVerifier,
 			},
 			{
-				maxPages: 20,
+				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,

@@ -1,7 +1,7 @@
 import net, { type AddressInfo, type Server } from "node:net";
 import axios, { type AxiosResponse } from "axios";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
-import { CompanyDomainValidator } from "../CompanyDomainValidator";
+import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
 import { EmailPattern } from "../../shared";
@@ -96,11 +96,11 @@ describe("EmailGenerator integration", () => {
 			{
 				mxRecordRetriever,
 				websiteEmailCrawler,
-				domainValidator: new CompanyDomainValidator(),
+				domainConfidenceScorer: new DomainConfidenceScorer(),
 				smtpVerifier: new SMTPVerifier("verification@example.com", "localhost"),
 			},
 			{
-				maxPages: 20,
+				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,

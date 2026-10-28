@@ -10,6 +10,8 @@ import { TextChunker } from "../TextChunker";
 import { WebsiteEmailCrawler } from "../WebsiteEmailCrawler";
 import { validateEmail } from "../../utils";
 import { EmailGenerator } from "./EmailGenerator";
+import { WebSearcher } from "../WebSearcher";
+import { SerperClient } from "../../integrations";
 
 const COMPANY_URL = "https://example.com";
 
@@ -24,6 +26,9 @@ function createGenerator() {
 	const smtpVerifier = new SMTPVerifier(
 		"verification@example.com",
 		"test.example",
+	);
+	const webSearcher = new WebSearcher(
+		new SerperClient(process.env.SERPER_API_KEY!),
 	);
 
 	const verify = vi
@@ -58,6 +63,7 @@ function createGenerator() {
 				websiteEmailCrawler,
 				domainConfidenceScorer,
 				smtpVerifier,
+				webSearcher,
 			},
 			{
 				companyUrlPagesSearchNum: 20,

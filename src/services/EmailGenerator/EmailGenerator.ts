@@ -4,7 +4,7 @@ import {
 	KnownEmailPattern,
 } from "../../shared";
 import { extractDomain } from "../../utils";
-import { VerificationResult } from "../CompanyDomainValidator";
+import { VerificationResult } from "../DomainConfidenceScorer";
 import { SMTPVerificationResult } from "../SMTPVerifier";
 import {
 	DomainResults,
@@ -29,23 +29,26 @@ export class EmailGenerator {
 					.filter((pattern) => pattern !== EmailPattern.Unknown)
 					.map((pattern) => [pattern, 0]),
 			);
-			const domains: DomainResults[] = [];
-			const seenDomains = new Set<string>();
+			const domainResultsMap = new Map<string, DomainResults>();
 
-			const domainDerivedData = await this.getDerivedDomainInformation(
+			await this.getDerivedDomainInformation(
 				emailInfo.companyUrl,
-				seenDomains,
+				domainResultsMap,
 			);
-			if (domainDerivedData) domains.push(domainDerivedData);
 
-			const crawledDomainInformationResults =
-				await this.getCrawledDomainInformationResults(
-					emailInfo.companyUrl,
-					seenDomains,
-					patternCount,
-				);
-			if (crawledDomainInformationResults.length)
-				domains.push(...crawledDomainInformationResults);
+			await this.getHomepageDomainAndPatternResults(
+				emailInfo.companyUrl,
+				domainResultsMap,
+				patternCount,
+			);
+
+			await this.getCrawledPdfResults(
+				domainResultsMap,
+				patternCount,
+				emailInfo.companyUrl,
+			);
+
+			const domains = [...domainResultsMap.values()];
 
 			await this.checkCatchAlls(domains);
 
@@ -72,61 +75,61 @@ export class EmailGenerator {
 
 	private async getDerivedDomainInformation(
 		companyUrl: string,
-		seenDomains: Set<string>,
-	): Promise<DomainResults | null> {
+		domainResultsMap: Map<string, DomainResults>,
+	): Promise<void> {
 		const domain = extractDomain(companyUrl);
+		if (this.incrementDomainCountIfSeen(domain, domainResultsMap)) return;
 
 		try {
 			const mxRecords =
 				await this.dependencies.mxRecordRetriever.findMXRecords(domain);
-			if (!mxRecords.length) return null;
+			if (!mxRecords.length) return;
 
-			seenDomains.add(domain);
-
-			return {
+			const domainResult: DomainResults = {
 				mxRecords,
 				domain,
-				confidence: this.dependencies.domainValidator.validateDomain(
+				confidence: this.dependencies.domainConfidenceScorer.validateDomain(
 					companyUrl,
 					domain,
 					companyUrl,
 				).confidence,
 				catchAll: "unknown",
+				count: 1,
 			};
+			domainResultsMap.set(domain, domainResult);
 		} catch (err: unknown) {
 			console.error(
 				`Failed to retrieve MX records for domain ${domain}: ${
 					err instanceof Error ? err.message : "unknown error"
 				}`,
 			);
-			return null;
+
+			return;
 		}
 	}
 
-	private async getCrawledDomainInformationResults(
+	private async getHomepageDomainAndPatternResults(
 		companyUrl: string,
-		seenDomains: Set<string>,
+		domainResultsMap: Map<string, DomainResults>,
 		patternMap: Map<EmailPattern, number>,
-	): Promise<DomainResults[]> {
+	): Promise<void> {
 		const crawlResultsMap = await this.dependencies.websiteEmailCrawler.crawl(
 			companyUrl,
 			{
-				maxPages: this.options.maxPages,
+				maxPages: this.options.companyUrlPagesSearchNum,
 			},
 		);
 
 		const mxLookupPromises = new Map<string, Promise<string[]>>();
-		const domainInformationArr: DomainResults[] = [];
-
 		for (const [sourceUrl, emailAndInferredPatternArr] of Object.entries(
 			crawlResultsMap,
 		)) {
-			const results = await Promise.allSettled(
+			const processingAndMxLookupRes = await Promise.allSettled(
 				emailAndInferredPatternArr.map(async (emailAndPattern) => {
 					const domain = extractDomain(emailAndPattern.email);
 
 					const validationResults =
-						this.dependencies.domainValidator.validateDomain(
+						this.dependencies.domainConfidenceScorer.validateDomain(
 							sourceUrl,
 							domain,
 							companyUrl,
@@ -141,34 +144,109 @@ export class EmailGenerator {
 						);
 					}
 
-					if (seenDomains.has(domain)) return null;
+					if (this.incrementDomainCountIfSeen(domain, domainResultsMap))
+						return null;
 
 					const mxRecords = await this.getMxRecords(
 						emailAndPattern.email,
 						mxLookupPromises,
 					);
+					if (!mxRecords.length) return null;
 
-					if (seenDomains.has(domain)) return null;
-					seenDomains.add(domain);
+					if (this.incrementDomainCountIfSeen(domain, domainResultsMap))
+						return null;
 
-					return {
+					const domainResult: DomainResults = {
 						mxRecords,
 						domain: domain,
 						confidence: validationResults.confidence,
 						catchAll: "unknown",
+						count: 1,
 					};
+					domainResultsMap.set(domain, domainResult);
+					return null;
 				}),
 			);
 
-			const fulfilledRes = results
-				.filter((res) => res.status === "fulfilled")
-				.map((res) => res.value)
-				.filter((res): res is DomainResults => !!res);
-
-			domainInformationArr.push(...fulfilledRes);
+			const failedReasons = processingAndMxLookupRes
+				.filter((res) => res.status === "rejected")
+				.map((res) => res.reason);
+			if (failedReasons.length)
+				console.warn(
+					`Not all homepage email and domain processing was successful: ${failedReasons.join("\n")}`,
+				);
 		}
+	}
 
-		return domainInformationArr.filter((res) => res.mxRecords.length);
+	private async getCrawledPdfResults(
+		domainResultsMap: Map<string, DomainResults>,
+		patternMap: Map<EmailPattern, number>,
+		companyUrl: string,
+		topChoiceDomain?: string,
+	): Promise<void> {
+		try {
+			const searchResults = await this.dependencies.webSearcher.fetchResults(
+				topChoiceDomain ? `@${topChoiceDomain}` : extractDomain(companyUrl),
+			);
+
+			const mxLookupPromises = new Map<string, Promise<string[]>>();
+
+			const processingAndMxLookupRes = await Promise.allSettled(
+				searchResults.map(async (res) => {
+					const urlToInferenceMap =
+						await this.dependencies.websiteEmailCrawler.crawl(res.link, {
+							maxPages: 1,
+						});
+
+					for (const { email, pattern } of urlToInferenceMap[res.link]) {
+						const domain = extractDomain(email);
+
+						const validationResults =
+							this.dependencies.domainConfidenceScorer.validateDomain(
+								res.link,
+								domain,
+								companyUrl,
+							);
+						if (
+							validationResults.verificationResult !== VerificationResult.Pass
+						)
+							return null;
+
+						if (pattern !== EmailPattern.Unknown)
+							patternMap.set(pattern, (patternMap.get(pattern) ?? 0) + 1);
+
+						if (this.incrementDomainCountIfSeen(domain, domainResultsMap))
+							return;
+
+						const mxRecords = await this.getMxRecords(email, mxLookupPromises);
+						if (!mxRecords.length) return;
+
+						if (this.incrementDomainCountIfSeen(domain, domainResultsMap))
+							return;
+
+						const domainResult: DomainResults = {
+							mxRecords,
+							domain: domain,
+							confidence: validationResults.confidence,
+							catchAll: "unknown",
+							count: 1,
+						};
+						domainResultsMap.set(domain, domainResult);
+					}
+				}),
+			);
+
+			const failures = processingAndMxLookupRes
+				.filter((res) => res.status === "rejected")
+				.map((res) => res.reason);
+			if (failures.length) throw new Error(failures.join("\n"));
+		} catch (err: unknown) {
+			console.warn(
+				`Pdf Result Crawling was not entirely successful: ${err instanceof Error ? err.message : "An unknown error occurred"}`,
+			);
+
+			return;
+		}
 	}
 
 	private async checkCatchAlls(domains: DomainResults[]): Promise<void> {
@@ -205,7 +283,10 @@ export class EmailGenerator {
 				.slice(0, this.options.numPatternsToVerify),
 
 			topDomains: domains
-				.sort((a, b) => b.confidence - a.confidence)
+				.sort((a, b) => {
+					const confidenceDiff = b.confidence - a.confidence;
+					return confidenceDiff ? confidenceDiff : b.count - a.count;
+				})
 				.slice(0, this.options.numDomainsToVerify),
 		};
 	}
@@ -301,6 +382,17 @@ export class EmailGenerator {
 
 		mxLookups.set(domain, lookup);
 		return lookup;
+	}
+
+	private incrementDomainCountIfSeen(
+		domain: string,
+		domainResultsMap: Map<string, DomainResults>,
+	): boolean {
+		const existingDomain = domainResultsMap.get(domain);
+		if (!existingDomain) return false;
+
+		existingDomain.count++;
+		return true;
 	}
 
 	private normalizeCandidateData(rawCandidateData: {

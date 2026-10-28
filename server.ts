@@ -15,6 +15,7 @@ import {
 	SerperClient,
 	SnifferIntegration,
 	EmailPatternInferrer,
+	WebSearcher,
 } from "./src";
 
 configDotenv({ path: "./.env" });
@@ -53,9 +54,10 @@ const emailGenerator = new EmailGenerator(
 		),
 		domainConfidenceScorer: new DomainConfidenceScorer(),
 		smtpVerifier: new SMTPVerifier(fromEmail, ehloHostName),
+		webSearcher: new WebSearcher(new SerperClient(apiKey)),
 	},
 	{
-		maxPages: 20,
+		companyUrlPagesSearchNum: 20,
 		catchAllConfidencePenalty: 20,
 		catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 		numPatternsToVerify: 5,

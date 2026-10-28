@@ -15,6 +15,8 @@ import {
 	PDFParserStrategy,
 } from "../WebsiteEmailCrawler/ParserStrategy";
 import { EmailGenerator } from "./EmailGenerator";
+import { WebSearcher } from "../WebSearcher";
+import { SerperClient } from "../../integrations";
 
 describe("EmailGenerator integration", () => {
 	let server: Server;
@@ -98,6 +100,9 @@ describe("EmailGenerator integration", () => {
 				websiteEmailCrawler,
 				domainConfidenceScorer: new DomainConfidenceScorer(),
 				smtpVerifier: new SMTPVerifier("verification@example.com", "localhost"),
+				webSearcher: new WebSearcher(
+					new SerperClient(process.env.SERPER_API_KEY!),
+				),
 			},
 			{
 				companyUrlPagesSearchNum: 20,

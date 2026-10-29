@@ -9,3 +9,4 @@ export * from "./EmailPatternInferrer";
 export * from "./SMTPVerifier";
 export * from "./EmailGenerator";
 export * from "./EmailEvidenceCollector";
+export * from "./DomainResultAndPatternAggregator";

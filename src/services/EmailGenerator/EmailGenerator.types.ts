@@ -1,5 +1,8 @@
 import { EmailPattern } from "../../shared";
-import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
+import {
+	CompanyWebsiteCollector,
+	PdfSearchCollector,
+} from "../EmailEvidenceCollector";
 import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
 import { WebSearcher } from "../WebSearcher";
@@ -14,13 +17,13 @@ export interface SearchInformation {
 export interface EmailGeneratorDependencies {
 	mxRecordRetriever: MXRecordRetriever;
 	websiteEmailCrawler: WebsiteEmailCrawler;
-	domainConfidenceScorer: DomainConfidenceScorer;
+	pdfEmailEvidenceCollector: PdfSearchCollector;
+	companyWebsiteEmailEvidenceCollector: CompanyWebsiteCollector;
 	smtpVerifier: SMTPVerifier;
 	webSearcher: WebSearcher;
 }
 
 export interface EmailGeneratorOptions {
-	companyUrlPagesSearchNum: number;
 	catchAllConfidencePenalty: number;
 	catchAllEmailLocalPart: string;
 	numPatternsToVerify: number;

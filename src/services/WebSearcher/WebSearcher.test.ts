@@ -24,9 +24,10 @@ describe("WebSearcher", () => {
 
 	test("searches for PDF and contact results", async () => {
 		search.mockResolvedValue([]);
+		vi.spyOn(console, "error").mockImplementation(() => {});
 		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults("Example Company")).rejects.toThrow();
+		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([]);
 
 		expect(search.mock.calls).toEqual([
 			["Example Company filetype:pdf"],
@@ -60,21 +61,19 @@ describe("WebSearcher", () => {
 		expect(warn).toHaveBeenCalledWith(searchError);
 	});
 
-	test("rejects when every query fails", async () => {
+	test("returns no results when every query fails", async () => {
 		search.mockRejectedValue(new Error("Search request failed"));
+		vi.spyOn(console, "error").mockImplementation(() => {});
 		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults("Example Company")).rejects.toThrow(
-			"An error occurred while fetching results: Could not retrieve any search results",
-		);
+		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([]);
 	});
 
-	test("rejects when successful queries return no results", async () => {
+	test("returns no results when successful queries return no results", async () => {
 		search.mockResolvedValue([]);
+		vi.spyOn(console, "error").mockImplementation(() => {});
 		const searcher = new WebSearcher({ search });
 
-		await expect(searcher.fetchResults("Example Company")).rejects.toThrow(
-			"An error occurred while fetching results: Could not retrieve any search results",
-		);
+		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([]);
 	});
 });

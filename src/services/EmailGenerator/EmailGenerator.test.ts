@@ -1,7 +1,12 @@
 import { describe, expect, test, vi } from "vitest";
 import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
+import { DomainResultAndPatternAggregator } from "../DomainResultAndPatternAggregator";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
+import {
+	CompanyWebsiteCollector,
+	PdfSearchCollector,
+} from "../EmailEvidenceCollector";
 import { EmailPattern } from "../../shared";
 import { EmailPatternInferrer } from "../EmailPatternInferrer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
@@ -29,6 +34,22 @@ function createGenerator() {
 	);
 	const webSearcher = new WebSearcher(
 		new SerperClient(process.env.SERPER_API_KEY!),
+	);
+	vi.spyOn(webSearcher, "fetchResults").mockResolvedValue([]);
+	const companyWebsiteEmailEvidenceCollector = new CompanyWebsiteCollector(
+		{
+			websiteCrawler: websiteEmailCrawler,
+			domainConfidenceScorer,
+		},
+		{ numPagesToCrawl: 20 },
+	);
+	const pdfEmailEvidenceCollector = new PdfSearchCollector({
+		websiteCrawler: websiteEmailCrawler,
+		domainConfidenceScorer,
+		webSearcher,
+	});
+	const domainResultAndPatternAggregator = new DomainResultAndPatternAggregator(
+		mxRecordRetriever,
 	);
 
 	const verify = vi
@@ -60,13 +81,13 @@ function createGenerator() {
 		generator: new EmailGenerator(
 			{
 				mxRecordRetriever,
-				websiteEmailCrawler,
 				domainConfidenceScorer,
 				smtpVerifier,
-				webSearcher,
+				companyWebsiteEmailEvidenceCollector,
+				pdfEmailEvidenceCollector,
+				domainResultAndPatternAggregator,
 			},
 			{
-				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,
@@ -136,9 +157,7 @@ describe("EmailGenerator", () => {
 		});
 
 		expect(
-			findMXRecords.mock.calls.filter(([email]) =>
-				email.includes("@example2.com"),
-			),
+			findMXRecords.mock.calls.filter(([email]) => email === "example2.com"),
 		).toHaveLength(1);
 	});
 

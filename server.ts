@@ -16,6 +16,9 @@ import {
 	SnifferIntegration,
 	EmailPatternInferrer,
 	WebSearcher,
+	PdfSearchCollector,
+	CompanyWebsiteCollector,
+	DomainResultAndPatternAggregator,
 } from "./src";
 
 configDotenv({ path: "./.env" });
@@ -44,20 +47,34 @@ if (
 	throw new Error("Invalid SERVER_PORT");
 }
 
+const webSearcher = new WebSearcher(new SerperClient(apiKey));
+const websiteCrawler = new WebsiteEmailCrawler(
+	[new HTMLParserStrategy(), new PDFParserStrategy()],
+	new EmailExtractor(new TextChunker(), new DocumentClamper()),
+	new EmailPatternInferrer(new TextChunker()),
+);
+const domainConfidenceScorer = new DomainConfidenceScorer();
+const mxRecordRetriever = new MXRecordRetriever();
+
 const emailGenerator = new EmailGenerator(
 	{
-		mxRecordRetriever: new MXRecordRetriever(),
-		websiteEmailCrawler: new WebsiteEmailCrawler(
-			[new HTMLParserStrategy(), new PDFParserStrategy()],
-			new EmailExtractor(new TextChunker(), new DocumentClamper()),
-			new EmailPatternInferrer(new TextChunker()),
+		pdfEmailEvidenceCollector: new PdfSearchCollector({
+			webSearcher,
+			websiteCrawler,
+			domainConfidenceScorer,
+		}),
+		companyWebsiteEmailEvidenceCollector: new CompanyWebsiteCollector(
+			{ websiteCrawler, domainConfidenceScorer },
+			{ numPagesToCrawl: 20 },
 		),
-		domainConfidenceScorer: new DomainConfidenceScorer(),
 		smtpVerifier: new SMTPVerifier(fromEmail, ehloHostName),
-		webSearcher: new WebSearcher(new SerperClient(apiKey)),
+		domainResultAndPatternAggregator: new DomainResultAndPatternAggregator(
+			mxRecordRetriever,
+		),
+		mxRecordRetriever,
+		domainConfidenceScorer,
 	},
 	{
-		companyUrlPagesSearchNum: 20,
 		catchAllConfidencePenalty: 20,
 		catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 		numPatternsToVerify: 5,

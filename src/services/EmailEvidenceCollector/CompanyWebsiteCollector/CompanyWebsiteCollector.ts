@@ -46,7 +46,7 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 		}
 
 		const crawlResultsMap = await this.dependencies.websiteCrawler.crawl(
-			normalizedCompanyUrl,
+			companyUrl,
 			{
 				maxPages: this.config!.numPagesToCrawl,
 			},

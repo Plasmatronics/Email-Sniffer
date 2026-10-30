@@ -2,8 +2,13 @@ import net, { type AddressInfo, type Server } from "node:net";
 import axios, { type AxiosResponse } from "axios";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
+import { DomainResultAndPatternAggregator } from "../DomainResultAndPatternAggregator";
 import { DocumentClamper } from "../DocumentClamper";
 import { EmailExtractor } from "../EmailExtractor";
+import {
+	CompanyWebsiteCollector,
+	PdfSearchCollector,
+} from "../EmailEvidenceCollector";
 import { EmailPattern } from "../../shared";
 import { EmailPatternInferrer } from "../EmailPatternInferrer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
@@ -93,19 +98,37 @@ describe("EmailGenerator integration", () => {
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
 		);
+		const domainConfidenceScorer = new DomainConfidenceScorer();
+		const webSearcher = new WebSearcher(
+			new SerperClient(process.env.SERPER_API_KEY!),
+		);
+		const smtpVerifier = new SMTPVerifier(
+			"verification@example.com",
+			"localhost",
+		);
 
 		const generator = new EmailGenerator(
 			{
 				mxRecordRetriever,
-				websiteEmailCrawler,
-				domainConfidenceScorer: new DomainConfidenceScorer(),
-				smtpVerifier: new SMTPVerifier("verification@example.com", "localhost"),
-				webSearcher: new WebSearcher(
-					new SerperClient(process.env.SERPER_API_KEY!),
+				domainConfidenceScorer,
+				smtpVerifier,
+				companyWebsiteEmailEvidenceCollector: new CompanyWebsiteCollector(
+					{
+						websiteCrawler: websiteEmailCrawler,
+						domainConfidenceScorer,
+					},
+					{ numPagesToCrawl: 20 },
+				),
+				pdfEmailEvidenceCollector: new PdfSearchCollector({
+					websiteCrawler: websiteEmailCrawler,
+					domainConfidenceScorer,
+					webSearcher,
+				}),
+				domainResultAndPatternAggregator: new DomainResultAndPatternAggregator(
+					mxRecordRetriever,
 				),
 			},
 			{
-				companyUrlPagesSearchNum: 20,
 				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,

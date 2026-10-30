@@ -85,7 +85,7 @@ describe("CompanyWebsiteCollector", () => {
 			},
 		]);
 
-		expect(crawl).toHaveBeenCalledWith("example.com", { maxPages: 3 });
+		expect(crawl).toHaveBeenCalledWith(COMPANY_URL, { maxPages: 3 });
 		expect(validateDomain).toHaveBeenCalledWith(
 			SOURCE_URL,
 			"example.com",

@@ -62,6 +62,36 @@ describe("DomainResultAndPatternAggregator", () => {
 		});
 	});
 
+	test("keeps conflicting catch-all results sticky", () => {
+		const aggregator = new DomainResultAndPatternAggregator(
+			new MXRecordRetriever(),
+		);
+		const domainResult = (catchAll: "catch-all" | "not-catch-all") => ({
+			domain: "example.com",
+			count: 1,
+			confidence: 50,
+			mxRecords: [],
+			catchAll,
+		});
+
+		const result = aggregator.aggregateResults([
+			{
+				patternFreq: new Map(),
+				domainResults: [domainResult("catch-all")],
+			},
+			{
+				patternFreq: new Map(),
+				domainResults: [domainResult("not-catch-all")],
+			},
+			{
+				patternFreq: new Map(),
+				domainResults: [domainResult("catch-all")],
+			},
+		]);
+
+		expect(result.domainResults[0].catchAll).toBe("conflicting");
+	});
+
 	test("aggregates evidence by domain and performs one MX lookup per domain", async () => {
 		const mxRecordRetriever = new MXRecordRetriever();
 		const findMXRecords = vi
@@ -99,6 +129,52 @@ describe("DomainResultAndPatternAggregator", () => {
 				count: 1,
 				confidence: 75,
 				mxRecords: ["mx.other.example"],
+				catchAll: "unknown",
+			},
+		]);
+	});
+
+	test("merges evidence into existing results and looks up only new domains", async () => {
+		const mxRecordRetriever = new MXRecordRetriever();
+		const findMXRecords = vi
+			.spyOn(mxRecordRetriever, "findMXRecords")
+			.mockResolvedValue(["mx.other.example"]);
+		const aggregator = new DomainResultAndPatternAggregator(mxRecordRetriever);
+
+		const result = await aggregator.aggregateEvidenceAndResults(
+			[
+				createEvidence({
+					email: "alice@example.com",
+					domainConfidence: 100,
+				}),
+				createEvidence({ email: "carol@other.example", domainConfidence: 75 }),
+			],
+			[
+				{
+					domain: "example.com",
+					count: 2,
+					confidence: 50,
+					mxRecords: ["mx.example.com"],
+					catchAll: "unknown",
+				},
+			],
+		);
+
+		expect(findMXRecords).toHaveBeenCalledTimes(1);
+		expect(findMXRecords).toHaveBeenCalledWith("other.example");
+		expect(result.domainResults).toEqual([
+			{
+				domain: "other.example",
+				count: 1,
+				confidence: 75,
+				mxRecords: ["mx.other.example"],
+				catchAll: "unknown",
+			},
+			{
+				domain: "example.com",
+				count: 3,
+				confidence: 100,
+				mxRecords: ["mx.example.com"],
 				catchAll: "unknown",
 			},
 		]);

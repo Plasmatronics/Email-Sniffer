@@ -30,13 +30,14 @@ export interface EmailGeneratorOptions {
 	numDomainsToVerify: number;
 }
 
-type CatchAllStatus = "catch-all" | "not-catch-all" | "unknown";
+export type CatchAllStatus = "catch-all" | "not-catch-all" | "unknown";
+export type AggregatedCatchAllStatus = CatchAllStatus | "conflicting";
 
 export interface DomainResults {
 	domain: string;
 	mxRecords: string[];
 	confidence: number;
-	catchAll: CatchAllStatus;
+	catchAll: AggregatedCatchAllStatus;
 	count: number;
 }
 

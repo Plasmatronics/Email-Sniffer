@@ -9,6 +9,7 @@ import {
 } from "../EmailEvidenceCollector";
 import { EmailPattern } from "../../shared";
 import { EmailPatternInferrer } from "../EmailPatternInferrer";
+import { InferredEmailConfidenceScorer } from "../InferredEmailConfidenceScorer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
 import { TextChunker } from "../TextChunker";
@@ -19,6 +20,14 @@ import { WebSearcher } from "../WebSearcher";
 import { SerperClient } from "../../integrations";
 
 const COMPANY_URL = "https://example.com";
+const INFERRED_EMAIL_SCORER_CONFIG = {
+	passingScore: 1,
+	weights: {
+		domainWeight: 0,
+		patternWeight: 0,
+		smtpWeight: 1,
+	},
+};
 
 function createGenerator() {
 	const mxRecordRetriever = new MXRecordRetriever();
@@ -50,6 +59,26 @@ function createGenerator() {
 	});
 	const domainResultAndPatternAggregator = new DomainResultAndPatternAggregator(
 		mxRecordRetriever,
+	);
+	const inferredEmailConfidenceScorer = new InferredEmailConfidenceScorer(
+		INFERRED_EMAIL_SCORER_CONFIG,
+	);
+	vi.spyOn(inferredEmailConfidenceScorer, "scoreCandidates").mockImplementation(
+		(candidates) =>
+			candidates
+				.filter(
+					(candidate) => candidate.smtpVerificationResult.status === "accepted",
+				)
+				.map((candidate) => ({
+					success: true,
+					confidence: candidate.domainConfidence,
+					catchAll:
+						candidate.catchAll === "conflicting"
+							? "unknown"
+							: candidate.catchAll,
+					pattern: candidate.pattern,
+					inferredEmail: candidate.email,
+				})),
 	);
 
 	const verify = vi
@@ -86,9 +115,9 @@ function createGenerator() {
 				companyWebsiteEmailEvidenceCollector,
 				pdfEmailEvidenceCollector,
 				domainResultAndPatternAggregator,
+				inferredEmailConfidenceScorer,
 			},
 			{
-				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,
 				numDomainsToVerify: 5,

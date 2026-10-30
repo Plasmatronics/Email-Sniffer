@@ -4,13 +4,13 @@ import {
 	KnownEmailPattern,
 } from "../../shared";
 import { extractDomain } from "../../utils";
-import { SMTPVerificationResult } from "../SMTPVerifier";
 import {
 	DomainResults,
 	EmailGeneratorDependencies,
 	EmailInferenceResults,
 	EmailGeneratorOptions,
 	SearchInformation,
+	EmailInferenceCandidate,
 } from "./EmailGenerator.types";
 
 export class EmailGenerator {
@@ -23,37 +23,27 @@ export class EmailGenerator {
 		emailInfo: SearchInformation,
 	): Promise<EmailInferenceResults> {
 		try {
-			const normalizedCompanyUrl = extractDomain(emailInfo.companyUrl);
-			if (!normalizedCompanyUrl) throw new Error("Could not verify companyUrl");
+			const normalizedCompanyDomain = extractDomain(emailInfo.companyUrl);
+			if (!normalizedCompanyDomain)
+				throw new Error("companyUrl is not syntatically correct.");
 
 			const companyUrlDomainResults = await this.getDerivedDomainInformation(
 				emailInfo.companyUrl,
 			);
-
 			const companyWebsiteEmailEvidence =
 				await this.dependencies.companyWebsiteEmailEvidenceCollector.collect({
 					companyUrl: emailInfo.companyUrl,
 				});
-
-			const prePdfSearchAggregation =
+			const companyWebsiteAggregation =
 				await this.dependencies.domainResultAndPatternAggregator.aggregateEvidence(
 					[...companyWebsiteEmailEvidence],
 				);
-			if (
-				prePdfSearchAggregation.domainResults.some(
-					(res: DomainResults) => res.domain === companyUrlDomainResults.domain,
-				)
-			)
-				prePdfSearchAggregation.domainResults.find(
-					(res) => res.domain === companyUrlDomainResults.domain,
-				)!.count++;
-			else prePdfSearchAggregation.domainResults.push(companyUrlDomainResults);
 
 			const pdfSearchEmailEvidence =
 				await this.dependencies.pdfEmailEvidenceCollector.collect({
-					companyUrl: normalizedCompanyUrl,
-					topChoiceDomain: prePdfSearchAggregation.domainResults.length
-						? prePdfSearchAggregation.domainResults.sort((a, b) => {
+					companyUrl: normalizedCompanyDomain,
+					topChoiceDomain: companyWebsiteAggregation.domainResults.length
+						? companyWebsiteAggregation.domainResults.sort((a, b) => {
 								const confidenceDiff = b.confidence - a.confidence;
 								if (confidenceDiff) return confidenceDiff;
 
@@ -64,27 +54,41 @@ export class EmailGenerator {
 
 			const aggregatedResults =
 				this.dependencies.domainResultAndPatternAggregator.aggregateResults([
-					prePdfSearchAggregation,
+					{
+						domainResults: [companyUrlDomainResults],
+						patternFreq: new Map<KnownEmailPattern, number>(),
+					},
+					companyWebsiteAggregation,
 					await this.dependencies.domainResultAndPatternAggregator.aggregateEvidence(
 						pdfSearchEmailEvidence,
 					),
 				]);
 
-			await this.checkCatchAlls(aggregatedResults.domainResults);
+			await this.enrichCheckAllStatus(aggregatedResults.domainResults);
 
 			const { topDomains, topPatterns } = this.getTopDomainsAndPatterns(
 				aggregatedResults.domainResults,
 				aggregatedResults.patternFreq,
 			);
 
-			const topInferenceCandidate = await this.getBestInferenceCandidate(
+			const candidates = await this.getInferenceCandidates(
 				topDomains,
 				topPatterns,
 				emailInfo.firstName,
 				emailInfo.lastName,
 			);
 
-			return this.normalizeCandidateData(topInferenceCandidate);
+			const scoredCandidates: EmailInferenceResults[] =
+				this.dependencies.inferredEmailConfidenceScorer.scoreCandidates(
+					candidates,
+					aggregatedResults.patternFreq,
+				);
+
+			const successCandidates = scoredCandidates.filter((res) => res.success);
+			if (!scoredCandidates.length)
+				throw new Error("No suitable candidates found");
+
+			return successCandidates.sort((a, b) => b.confidence - a.confidence)[0];
 		} catch (err: unknown) {
 			return {
 				success: false,
@@ -133,7 +137,7 @@ export class EmailGenerator {
 		}
 	}
 
-	private async checkCatchAlls(domains: DomainResults[]): Promise<void> {
+	private async enrichCheckAllStatus(domains: DomainResults[]): Promise<void> {
 		await Promise.all(
 			domains.map(async (domain) => {
 				const smtpVerification = await this.dependencies.smtpVerifier.verify(
@@ -141,13 +145,9 @@ export class EmailGenerator {
 					domain.mxRecords,
 				);
 
-				if (smtpVerification.status === "accepted") {
-					domain.confidence = Math.max(
-						0,
-						domain.confidence - this.options.catchAllConfidencePenalty,
-					);
+				if (smtpVerification.status === "accepted")
 					domain.catchAll = "catch-all";
-				} else if (smtpVerification.status === "rejected")
+				else if (smtpVerification.status === "rejected")
 					domain.catchAll = "not-catch-all";
 				else domain.catchAll = "unknown";
 			}),
@@ -175,20 +175,17 @@ export class EmailGenerator {
 		};
 	}
 
-	private async getBestInferenceCandidate(
+	private async getInferenceCandidates(
 		topDomains: DomainResults[],
 		topPatterns: EmailPattern[],
 		firstName: string,
 		lastName: string,
-	): Promise<{
-		email: string;
-		pattern: EmailPattern;
-		domain: DomainResults;
-		verification: SMTPVerificationResult;
-	}> {
+	): Promise<EmailInferenceCandidate[]> {
+		if (!topDomains.length) return [];
+
 		const smtpRes = await Promise.allSettled(
 			topDomains.flatMap((domain) =>
-				topPatterns.map(async (pattern) => {
+				topPatterns.map(async (pattern): Promise<EmailInferenceCandidate> => {
 					if (pattern === EmailPattern.Unknown)
 						throw new Error(
 							"Could not complete verfication for this email as it is based off of an unknown pattern",
@@ -201,65 +198,34 @@ export class EmailGenerator {
 					const email = `${emailLocalPart}@${domain.domain}`;
 
 					return {
-						email,
-						pattern,
-						domain,
-						verification: await this.dependencies.smtpVerifier.verify(
+						catchAll: domain.catchAll,
+						domainConfidence: domain.confidence,
+						smtpVerificationResult: await this.dependencies.smtpVerifier.verify(
 							email,
 							domain.mxRecords,
 						),
+						pattern,
+						email,
 					};
 				}),
 			),
 		);
 
-		const successSmtp = smtpRes
-			.filter((smtp) => smtp.status === "fulfilled")
-			.map((res) => res.value);
-		if (!successSmtp.length) {
-			const rejectionReasons = smtpRes
+		const successfulRequests = smtpRes.filter(
+			(res) => res.status === "fulfilled",
+		);
+		if (!successfulRequests.length) {
+			const errorReasons = smtpRes
 				.filter((res) => res.status === "rejected")
 				.map((res) => res.reason);
-			throw new Error(
+
+			console.warn(
 				`No SMTP promises were fulfilled. Reasons: ${
-					rejectionReasons.length ? rejectionReasons.join("; ") : "N/A"
+					errorReasons.length ? errorReasons.join("\n") : "N/A"
 				}`,
 			);
 		}
 
-		const acceptedSMTPResponses = successSmtp.filter(
-			(res) => res.verification.status === "accepted",
-		);
-		if (!acceptedSMTPResponses.length) {
-			const nonAcceptedDetails = successSmtp
-				.filter((res) => res.verification.status !== "accepted")
-				.map((res) => `${res.email}: ${res.verification.message}`);
-			throw new Error(
-				`No SMTP requests were accepted. Details: ${
-					nonAcceptedDetails.length
-						? nonAcceptedDetails.join("; ")
-						: "All SMTP verifications failed or were rejected."
-				}`,
-			);
-		}
-
-		return acceptedSMTPResponses.sort(
-			(a, b) => b.domain.confidence - a.domain.confidence,
-		)[0];
-	}
-
-	private normalizeCandidateData(rawCandidateData: {
-		email: string;
-		pattern: EmailPattern;
-		domain: DomainResults;
-		verification: SMTPVerificationResult;
-	}): EmailInferenceResults {
-		return {
-			success: true,
-			confidence: rawCandidateData.domain.confidence,
-			catchAll: rawCandidateData.domain.catchAll,
-			pattern: rawCandidateData.pattern,
-			inferredEmail: rawCandidateData.email,
-		};
+		return successfulRequests.map((res) => res.value);
 	}
 }

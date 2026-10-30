@@ -1,9 +1,12 @@
 import { EmailPattern } from "../../shared";
 import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
+import { DomainResultAndPatternAggregator } from "../DomainResultAndPatternAggregator";
+import {
+	CompanyWebsiteCollector,
+	PdfSearchCollector,
+} from "../EmailEvidenceCollector";
 import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
-import { WebSearcher } from "../WebSearcher";
-import { WebsiteEmailCrawler } from "../WebsiteEmailCrawler";
 
 export interface SearchInformation {
 	firstName: string;
@@ -12,15 +15,15 @@ export interface SearchInformation {
 }
 
 export interface EmailGeneratorDependencies {
-	mxRecordRetriever: MXRecordRetriever;
-	websiteEmailCrawler: WebsiteEmailCrawler;
-	domainConfidenceScorer: DomainConfidenceScorer;
+	pdfEmailEvidenceCollector: PdfSearchCollector;
+	companyWebsiteEmailEvidenceCollector: CompanyWebsiteCollector;
 	smtpVerifier: SMTPVerifier;
-	webSearcher: WebSearcher;
+	domainResultAndPatternAggregator: DomainResultAndPatternAggregator;
+	mxRecordRetriever: MXRecordRetriever;
+	domainConfidenceScorer: DomainConfidenceScorer;
 }
 
 export interface EmailGeneratorOptions {
-	companyUrlPagesSearchNum: number;
 	catchAllConfidencePenalty: number;
 	catchAllEmailLocalPart: string;
 	numPatternsToVerify: number;

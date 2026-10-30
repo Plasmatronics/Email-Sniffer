@@ -29,10 +29,12 @@ export class WebSearcher {
 
 			return successfulSearchResults;
 		} catch (err: unknown) {
-			throw new Error(
-				`An error occurred while fetching results: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
+			console.error(
+				`An error occurred while fetching results for the query ${baseQuery}: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
 				{ cause: err },
 			);
+
+			return [];
 		}
 	}
 }

@@ -11,6 +11,7 @@ import {
 } from "../EmailEvidenceCollector";
 import { EmailPattern } from "../../shared";
 import { EmailPatternInferrer } from "../EmailPatternInferrer";
+import { InferredEmailConfidenceScorer } from "../InferredEmailConfidenceScorer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
 import { SMTPVerifier } from "../SMTPVerifier";
 import { TextChunker } from "../TextChunker";
@@ -22,6 +23,15 @@ import {
 import { EmailGenerator } from "./EmailGenerator";
 import { WebSearcher } from "../WebSearcher";
 import { SerperClient } from "../../integrations";
+
+const INFERRED_EMAIL_SCORER_CONFIG = {
+	passingScore: 1,
+	weights: {
+		domainWeight: 0,
+		patternWeight: 0,
+		smtpWeight: 1,
+	},
+};
 
 describe("EmailGenerator integration", () => {
 	let server: Server;
@@ -106,6 +116,9 @@ describe("EmailGenerator integration", () => {
 			"verification@example.com",
 			"localhost",
 		);
+		const inferredEmailConfidenceScorer = new InferredEmailConfidenceScorer(
+			INFERRED_EMAIL_SCORER_CONFIG,
+		);
 
 		const generator = new EmailGenerator(
 			{
@@ -127,9 +140,9 @@ describe("EmailGenerator integration", () => {
 				domainResultAndPatternAggregator: new DomainResultAndPatternAggregator(
 					mxRecordRetriever,
 				),
+				inferredEmailConfidenceScorer,
 			},
 			{
-				catchAllConfidencePenalty: 20,
 				catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 				numPatternsToVerify: 5,
 				numDomainsToVerify: 5,

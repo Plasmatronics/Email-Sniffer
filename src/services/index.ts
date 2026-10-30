@@ -10,3 +10,4 @@ export * from "./SMTPVerifier";
 export * from "./EmailGenerator";
 export * from "./EmailEvidenceCollector";
 export * from "./DomainResultAndPatternAggregator";
+export * from "./InferredEmailConfidenceScorer";

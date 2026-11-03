@@ -65,6 +65,7 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 				);
 
 				const emailEvidenceArr: EmailEvidence[] = [];
+				if (!(res.link in urlToInferenceMap)) return emailEvidenceArr;
 
 				for (const { email, pattern } of urlToInferenceMap[res.link]) {
 					const domain = extractDomain(email);

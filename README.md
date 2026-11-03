@@ -21,12 +21,7 @@ cd Email-Sniffer
 npm install
 ```
 
-Copy the example environment file and fill in each value:
-
-```bash
-cp .env.example .env
-```
-
+Create a .env file and transfer the mocked variables from the example .env to your real .env files, and swapping the mocked variables for real ones:
 | Variable             | Description                                          |
 | -------------------- | ---------------------------------------------------- |
 | `FROM_MAILBOX`       | Mailbox used as the sender during SMTP verification. |
@@ -35,35 +30,25 @@ cp .env.example .env
 | `SERVER_PORT`        | Port on which the HTTP server listens.               |
 
 ## Run the server
-
 Start the service:
-
 ```bash
 npm start
 ```
 
 ## API
-
 ### Infer an email address
-
 `POST /email-inferences`
 
-Request:
-
-```bash
-curl -X POST http://localhost:3000/email-inferences \
-  -H "Content-Type: application/json" \
-  -d '{
-    "firstName": "Alice",
-    "lastName": "Smith",
-    "companyUrl": "https://example.com"
+Request Body:
+```json
+'{
+    "firstName": "string",
+    "lastName": "string",
+    "companyUrl": "string"
   }'
 ```
 
-The request requires `firstName`, `lastName`, and `companyUrl`.
-
-A successful inference returns an object like:
-
+An example successful inference returns an object like:
 ```json
 {
 	"success": true,
@@ -75,7 +60,6 @@ A successful inference returns an object like:
 ```
 
 If no suitable candidate can be verified, the service returns:
-
 ```json
 {
 	"success": false,
@@ -84,14 +68,9 @@ If no suitable candidate can be verified, the service returns:
 ```
 
 ### Health check
-
 `GET /health`
-
-Checks connectivity to the configured Serper integration. The endpoint returns `200` when all vital integrations are healthy and `503` otherwise.
-
-```bash
-curl http://localhost:3000/health
-```
+Checks integration + internet connectivity. 
+The endpoint returns `200` when all vital integrations are healthy and `503` otherwise.
 
 ## Project structure
 

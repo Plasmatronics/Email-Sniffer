@@ -41,11 +41,11 @@ npm start
 
 Request Body:
 ```json
-'{
+{
     "firstName": "string",
     "lastName": "string",
     "companyUrl": "string"
-  }'
+  }
 ```
 
 An example successful inference returns an object like:

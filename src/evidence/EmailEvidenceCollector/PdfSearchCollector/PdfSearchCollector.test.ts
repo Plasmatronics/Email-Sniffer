@@ -10,6 +10,10 @@ import { EmailPatternInferrer } from "../../../email-inference/EmailPatternInfer
 import { TextChunker } from "../../../processing/TextChunker";
 import { WebSearcher } from "../../../search/WebSearcher";
 import { WebsiteEmailCrawler } from "../../../crawling/WebsiteEmailCrawler";
+import {
+	DEFAULT_WEBSITE_FETCHER_CONFIG,
+	type WebsiteFetcher,
+} from "../../../crawling/WebsiteFetcher";
 import type { WebSearchClient } from "../../../integrations";
 import type { WebSearchResult } from "../../../types";
 import { PdfSearchCollector } from "./PdfSearchCollector";
@@ -31,6 +35,7 @@ function createCollector() {
 		[],
 		new EmailExtractor(new TextChunker(), new DocumentClamper()),
 		new EmailPatternInferrer(new TextChunker()),
+		{ fetch: vi.fn() } as WebsiteFetcher,
 	);
 	const domainConfidenceScorer = new DomainConfidenceScorer();
 
@@ -98,7 +103,10 @@ describe("PdfSearchCollector", () => {
 		]);
 
 		expect(fetchResults).toHaveBeenCalledWith("@example.com");
-		expect(crawl).toHaveBeenCalledWith(SEARCH_URL, { maxPages: 1 });
+		expect(crawl).toHaveBeenCalledWith(SEARCH_URL, {
+			maxPages: 1,
+			...DEFAULT_WEBSITE_FETCHER_CONFIG,
+		});
 		expect(validateDomain).toHaveBeenCalledWith(
 			SEARCH_URL,
 			"example.com",

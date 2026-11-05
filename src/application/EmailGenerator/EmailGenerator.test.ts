@@ -14,6 +14,7 @@ import { MXRecordRetriever } from "../../verification/MXRecordRetriever";
 import { SMTPVerifier } from "../../verification/SMTPVerifier";
 import { TextChunker } from "../../processing/TextChunker";
 import { WebsiteEmailCrawler } from "../../crawling/WebsiteEmailCrawler";
+import type { WebsiteFetcher } from "../../crawling/WebsiteFetcher";
 import { validateEmail } from "../../utils";
 import { EmailGenerator } from "./EmailGenerator";
 import { WebSearcher } from "../../search/WebSearcher";
@@ -35,6 +36,7 @@ function createGenerator() {
 		[],
 		new EmailExtractor(new TextChunker(), new DocumentClamper()),
 		new EmailPatternInferrer(new TextChunker()),
+		{ fetch: vi.fn() } as WebsiteFetcher,
 	);
 	const domainConfidenceScorer = new DomainConfidenceScorer();
 	const smtpVerifier = new SMTPVerifier(

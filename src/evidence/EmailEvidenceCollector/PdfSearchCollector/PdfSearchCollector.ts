@@ -9,6 +9,7 @@ import {
 	EmailEvidenceCollector,
 	EmailEvidence,
 } from "../EmailEvidenceCollector";
+import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../../../crawling";
 
 export interface PdfCollectionInput {
 	companyUrl: string;
@@ -61,6 +62,7 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 					res.link,
 					{
 						maxPages: 1,
+						...DEFAULT_WEBSITE_FETCHER_CONFIG,
 					},
 				);
 

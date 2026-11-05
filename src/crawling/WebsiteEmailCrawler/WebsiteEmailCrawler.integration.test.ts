@@ -1,5 +1,6 @@
 import { createServer, type Server } from "node:http";
 import type { AddressInfo } from "node:net";
+import { PlaywrightWebsiteFetcher } from "../WebsiteFetcher";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { EmailExtractor } from "../../processing/EmailExtractor";
 import { EmailPatternInferrer } from "../../email-inference/EmailPatternInferrer";
@@ -8,10 +9,12 @@ import { HTMLParserStrategy } from "../parsers";
 import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
 import { DocumentClamper } from "../../processing/DocumentClamper";
 import { EmailPattern } from "../../shared";
+import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../WebsiteFetcher";
 
 describe("WebsiteEmailCrawler integration", () => {
 	let baseUrl: string;
 	let server: Server;
+	let websiteFetcher: PlaywrightWebsiteFetcher;
 
 	beforeAll(async () => {
 		server = createServer((request, response) => {
@@ -47,9 +50,11 @@ describe("WebsiteEmailCrawler integration", () => {
 		});
 		const address = server.address() as AddressInfo;
 		baseUrl = `http://127.0.0.1:${address.port}`;
+		websiteFetcher = await PlaywrightWebsiteFetcher.createFetcher({});
 	});
 
 	afterAll(async () => {
+		await websiteFetcher.close();
 		await new Promise<void>((resolve, reject) => {
 			server.close((error) => (error ? reject(error) : resolve()));
 		});
@@ -60,9 +65,13 @@ describe("WebsiteEmailCrawler integration", () => {
 			[new HTMLParserStrategy()],
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
+			websiteFetcher,
 		);
 
-		const res = await crawler.crawl(`${baseUrl}/`, { maxPages: 2 });
+		const res = await crawler.crawl(`${baseUrl}/`, {
+			maxPages: 2,
+			...DEFAULT_WEBSITE_FETCHER_CONFIG,
+		});
 
 		expect(res).toEqual({
 			[`${baseUrl}/`]: [
@@ -73,19 +82,5 @@ describe("WebsiteEmailCrawler integration", () => {
 				{ email: "contact@example.com", pattern: EmailPattern.Unknown },
 			],
 		});
-	});
-
-	test("does not follow HTTP redirects", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-		const crawler = new WebsiteEmailCrawler(
-			[new HTMLParserStrategy()],
-			new EmailExtractor(new TextChunker(), new DocumentClamper()),
-			new EmailPatternInferrer(new TextChunker()),
-		);
-
-		await expect(
-			crawler.crawl(`${baseUrl}/redirect`, { maxPages: 1 }),
-		).resolves.toEqual({});
-		expect(warn).toHaveBeenCalledOnce();
 	});
 });

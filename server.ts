@@ -20,7 +20,9 @@ import {
 	CompanyWebsiteCollector,
 	DomainResultAndPatternAggregator,
 	InferredEmailConfidenceScorer,
+	PlaywrightWebsiteFetcher,
 } from "./src";
+import { chromium } from "playwright";
 
 configDotenv({ path: "./.env" });
 
@@ -48,11 +50,18 @@ if (
 	throw new Error("Invalid SERVER_PORT");
 }
 
+const browser = await chromium.launch({
+	headless: true,
+});
+
+const websiteFetcher = new PlaywrightWebsiteFetcher(browser);
+
 const webSearcher = new WebSearcher(new SerperClient(apiKey));
 const websiteCrawler = new WebsiteEmailCrawler(
 	[new HTMLParserStrategy(), new PDFParserStrategy()],
 	new EmailExtractor(new TextChunker(), new DocumentClamper()),
 	new EmailPatternInferrer(new TextChunker()),
+	websiteFetcher,
 );
 const domainConfidenceScorer = new DomainConfidenceScorer();
 const mxRecordRetriever = new MXRecordRetriever();

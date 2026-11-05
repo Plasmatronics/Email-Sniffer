@@ -1,8 +1,3 @@
-import axios, {
-	AxiosHeaderValue,
-	AxiosResponse,
-	type AxiosRequestConfig,
-} from "axios";
 import { EmailExtractor } from "../../processing/EmailExtractor";
 import { ParserStrategy } from "../parsers";
 import { MaxHeap } from "mnemonist";
@@ -10,13 +5,18 @@ import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
 import { PAGE_WEIGHTS } from "./pageWeights";
 import { PatternInference } from "../../shared";
 import { EmailPatternInferrer } from "../../email-inference/EmailPatternInferrer";
+import {
+	FetchResult,
+	WebsiteFetcher,
+	WebsiteFetcherConfig,
+} from "../WebsiteFetcher";
 
 export const MAX_ALLOWED_PAGE_ATTEMPTS = 50;
 const MAX_ALLOWED_PAGES = 20;
 const MIN_ALLOWED_PAGES = 1;
 const DEFAULT_MAX_CONTENT_LENGTH = 1_000_000;
 
-export interface WebsiteEmailCrawlerConfig extends AxiosRequestConfig {
+export interface WebsiteEmailCrawlerConfig extends WebsiteFetcherConfig {
 	maxPages: number;
 }
 
@@ -27,12 +27,13 @@ export class WebsiteEmailCrawler {
 		private readonly parserStrategies: ParserStrategy[],
 		private readonly emailExtractor: EmailExtractor,
 		private readonly patternInferrer: EmailPatternInferrer,
+		private readonly websiteFetcher: WebsiteFetcher,
 	) {}
 
 	private normalizeConfig(
 		config: WebsiteEmailCrawlerConfig,
 	): WebsiteEmailCrawlerConfig {
-		const { maxPages, ...axiosConfig } = config;
+		const { maxPages, ...fetcherConfig } = config;
 		const normalizedMaxPages = Math.min(
 			Math.max(
 				MIN_ALLOWED_PAGES,
@@ -40,15 +41,14 @@ export class WebsiteEmailCrawler {
 			),
 			MAX_ALLOWED_PAGES,
 		);
+
 		return {
+			...fetcherConfig,
 			maxPages: normalizedMaxPages,
-			...axiosConfig,
-			responseType: "arraybuffer",
 			maxContentLength: Math.min(
-				axiosConfig.maxContentLength ?? DEFAULT_MAX_CONTENT_LENGTH,
+				fetcherConfig.maxContentLength ?? DEFAULT_MAX_CONTENT_LENGTH,
 				DEFAULT_MAX_CONTENT_LENGTH,
 			),
-			maxRedirects: 0,
 		};
 	}
 
@@ -56,7 +56,7 @@ export class WebsiteEmailCrawler {
 		url: string,
 		config: WebsiteEmailCrawlerConfig,
 	): Promise<CrawlResult> {
-		const { maxPages, ...axiosConfig } = this.normalizeConfig(config);
+		const { maxPages, ...fetcherConfig } = this.normalizeConfig(config);
 
 		const crawlResults: CrawlResult = {};
 
@@ -76,18 +76,19 @@ export class WebsiteEmailCrawler {
 
 			const [poppedUrl] = maxHeap.pop()!;
 			numAttempts++;
-			let res: AxiosResponse;
+
+			let res: FetchResult;
 			try {
-				res = await axios.get(poppedUrl, axiosConfig);
+				res = await this.websiteFetcher.fetch(poppedUrl, fetcherConfig);
 			} catch (error) {
-				if (axios.isAxiosError(error)) {
-					console.warn(`Failed to fetch ${poppedUrl}: ${error.message}`);
-				}
+				console.warn(
+					`Failed to fetch ${poppedUrl}: ${error instanceof Error ? error.message : "An unknown error occurred."}`,
+				);
 
 				continue;
 			}
 
-			const strategy = this.delegateStrategy(res.headers["content-type"] ?? "");
+			const strategy = this.delegateStrategy(res.contentType ?? "");
 			if (!strategy) {
 				console.warn(
 					`We are not able to process ${poppedUrl} because it doesnt have a content type we can process`,
@@ -172,7 +173,7 @@ export class WebsiteEmailCrawler {
 	}
 
 	private delegateStrategy(
-		contentTypeHeader: AxiosHeaderValue,
+		contentTypeHeader: FetchResult["contentType"],
 	): ParserStrategy | undefined {
 		if (!contentTypeHeader) return undefined;
 		return this.parserStrategies.find((strategy) =>

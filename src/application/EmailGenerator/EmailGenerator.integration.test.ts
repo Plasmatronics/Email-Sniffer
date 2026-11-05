@@ -1,5 +1,4 @@
 import net, { type AddressInfo, type Server } from "node:net";
-import axios, { type AxiosResponse } from "axios";
 import { afterAll, beforeAll, describe, expect, test, vi } from "vitest";
 import { DomainConfidenceScorer } from "../../domain/DomainConfidenceScorer";
 import { DomainResultAndPatternAggregator } from "../../email-inference/DomainResultAndPatternAggregator";
@@ -16,6 +15,7 @@ import { MXRecordRetriever } from "../../verification/MXRecordRetriever";
 import { SMTPVerifier } from "../../verification/SMTPVerifier";
 import { TextChunker } from "../../processing/TextChunker";
 import { WebsiteEmailCrawler } from "../../crawling/WebsiteEmailCrawler";
+import type { WebsiteFetcher } from "../../crawling/WebsiteFetcher";
 import { HTMLParserStrategy, PDFParserStrategy } from "../../crawling/parsers";
 import { EmailGenerator } from "./EmailGenerator";
 import { WebSearcher } from "../../search/WebSearcher";
@@ -83,17 +83,19 @@ describe("EmailGenerator integration", () => {
 	});
 
 	test("infers a crawled email through a real SMTP verifier", async () => {
-		vi.spyOn(axios, "get").mockResolvedValue({
-			headers: { "content-type": "text/html; charset=utf-8" },
-			data: Buffer.from(`
+		const websiteFetcher: WebsiteFetcher = {
+			fetch: vi.fn().mockResolvedValue({
+				contentType: "text/html; charset=utf-8",
+				data: Buffer.from(`
 				<html>
 					<body>
 						<h1>Contact Alice Smith</h1>
 						<p>Email alice.smith@example.com</p>
 					</body>
 				</html>
-			`),
-		} as AxiosResponse<Buffer>);
+				`),
+			}),
+		};
 
 		const mxRecordRetriever = new MXRecordRetriever();
 		vi.spyOn(mxRecordRetriever, "findMXRecords").mockResolvedValue([
@@ -104,6 +106,7 @@ describe("EmailGenerator integration", () => {
 			[new HTMLParserStrategy(), new PDFParserStrategy()],
 			new EmailExtractor(new TextChunker(), new DocumentClamper()),
 			new EmailPatternInferrer(new TextChunker()),
+			websiteFetcher,
 		);
 		const domainConfidenceScorer = new DomainConfidenceScorer();
 		const webSearcher = new WebSearcher(

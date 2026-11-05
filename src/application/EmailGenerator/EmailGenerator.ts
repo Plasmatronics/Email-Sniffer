@@ -3,7 +3,7 @@ import {
 	generateEmailLocalPartMap,
 	KnownEmailPattern,
 } from "../../shared";
-import { extractDomain } from "../../utils";
+import { extractDomain, normalizeCompanyURL } from "../../utils";
 import {
 	DomainResults,
 	EmailGeneratorDependencies,
@@ -24,15 +24,15 @@ export class EmailGenerator {
 	): Promise<EmailInferenceResults> {
 		try {
 			const normalizedCompanyDomain = extractDomain(emailInfo.companyUrl);
-			if (!normalizedCompanyDomain)
+			const normalizedCompanyUrl = normalizeCompanyURL(emailInfo.companyUrl);
+			if (!normalizedCompanyDomain || !normalizedCompanyUrl)
 				throw new Error("companyUrl is not syntactically correct.");
 
-			const companyUrlDomainResults = await this.getDerivedDomainInformation(
-				emailInfo.companyUrl,
-			);
+			const companyUrlDomainResults =
+				await this.getDerivedDomainInformation(normalizedCompanyUrl);
 			const companyWebsiteEmailEvidence =
 				await this.dependencies.companyWebsiteEmailEvidenceCollector.collect({
-					companyUrl: emailInfo.companyUrl,
+					companyUrl: normalizedCompanyUrl,
 				});
 			const companyWebsiteAggregation =
 				await this.dependencies.domainResultAndPatternAggregator.aggregateEvidence(
@@ -41,7 +41,7 @@ export class EmailGenerator {
 
 			const pdfSearchEmailEvidence =
 				await this.dependencies.pdfEmailEvidenceCollector.collect({
-					companyUrl: normalizedCompanyDomain,
+					companyUrl: normalizedCompanyUrl,
 					topChoiceDomain: companyWebsiteAggregation.domainResults.length
 						? companyWebsiteAggregation.domainResults.sort((a, b) => {
 								const confidenceDiff = b.confidence - a.confidence;

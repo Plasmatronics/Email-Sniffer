@@ -25,7 +25,7 @@ export class EmailGenerator {
 		try {
 			const normalizedCompanyDomain = extractDomain(emailInfo.companyUrl);
 			if (!normalizedCompanyDomain)
-				throw new Error("companyUrl is not syntatically correct.");
+				throw new Error("companyUrl is not syntactically correct.");
 
 			const companyUrlDomainResults = await this.getDerivedDomainInformation(
 				emailInfo.companyUrl,

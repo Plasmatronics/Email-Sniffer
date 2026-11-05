@@ -19,6 +19,7 @@ import {
 	PdfSearchCollector,
 	CompanyWebsiteCollector,
 	DomainResultAndPatternAggregator,
+	InferredEmailConfidenceScorer,
 } from "./src";
 
 configDotenv({ path: "./.env" });
@@ -73,9 +74,16 @@ const emailGenerator = new EmailGenerator(
 		),
 		mxRecordRetriever,
 		domainConfidenceScorer,
+		inferredEmailConfidenceScorer: new InferredEmailConfidenceScorer({
+			passingScore: 75,
+			weights: {
+				smtpWeight: 35,
+				domainWeight: 25,
+				patternWeight: 40,
+			},
+		}),
 	},
 	{
-		catchAllConfidencePenalty: 20,
 		catchAllEmailLocalPart: "emailSnifferCatchAllTestingLocal",
 		numPatternsToVerify: 5,
 		numDomainsToVerify: 3,

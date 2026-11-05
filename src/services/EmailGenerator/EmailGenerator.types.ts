@@ -1,12 +1,13 @@
-import { EmailPattern } from "../../shared";
+import { EmailPattern, KnownEmailPattern } from "../../shared";
 import { DomainConfidenceScorer } from "../DomainConfidenceScorer";
 import { DomainResultAndPatternAggregator } from "../DomainResultAndPatternAggregator";
 import {
 	CompanyWebsiteCollector,
 	PdfSearchCollector,
 } from "../EmailEvidenceCollector";
+import { InferredEmailConfidenceScorer } from "../InferredEmailConfidenceScorer";
 import { MXRecordRetriever } from "../MXRecordRetriever";
-import { SMTPVerifier } from "../SMTPVerifier";
+import { SMTPVerificationResult, SMTPVerifier } from "../SMTPVerifier";
 
 export interface SearchInformation {
 	firstName: string;
@@ -21,30 +22,39 @@ export interface EmailGeneratorDependencies {
 	domainResultAndPatternAggregator: DomainResultAndPatternAggregator;
 	mxRecordRetriever: MXRecordRetriever;
 	domainConfidenceScorer: DomainConfidenceScorer;
+	inferredEmailConfidenceScorer: InferredEmailConfidenceScorer;
 }
 
 export interface EmailGeneratorOptions {
-	catchAllConfidencePenalty: number;
 	catchAllEmailLocalPart: string;
 	numPatternsToVerify: number;
 	numDomainsToVerify: number;
 }
 
-type CatchAllStatus = "catch-all" | "not-catch-all" | "unknown";
+export type CatchAllStatus = "catch-all" | "not-catch-all" | "unknown";
+export type AggregatedCatchAllStatus = CatchAllStatus | "conflicting";
 
 export interface DomainResults {
 	domain: string;
 	mxRecords: string[];
 	confidence: number;
-	catchAll: CatchAllStatus;
+	catchAll: AggregatedCatchAllStatus;
 	count: number;
+}
+
+export interface EmailInferenceCandidate {
+	catchAll: AggregatedCatchAllStatus;
+	domainConfidence: number;
+	smtpVerificationResult: SMTPVerificationResult;
+	pattern: KnownEmailPattern;
+	email: string;
 }
 
 export interface SuccessfulEmailInferenceResults {
 	catchAll: CatchAllStatus;
 	confidence: number;
 	success: true;
-	pattern: EmailPattern;
+	pattern: KnownEmailPattern;
 	inferredEmail: string;
 }
 

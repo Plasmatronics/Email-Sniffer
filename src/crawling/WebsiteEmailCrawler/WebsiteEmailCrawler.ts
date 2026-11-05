@@ -14,7 +14,7 @@ import {
 export const MAX_ALLOWED_PAGE_ATTEMPTS = 50;
 const MAX_ALLOWED_PAGES = 20;
 const MIN_ALLOWED_PAGES = 1;
-const DEFAULT_MAX_CONTENT_LENGTH = 1_000_000;
+const MAX_CONTENT_LENGTH = 10_000_000;
 
 export interface WebsiteEmailCrawlerConfig extends WebsiteFetcherConfig {
 	maxPages: number;
@@ -46,8 +46,8 @@ export class WebsiteEmailCrawler {
 			...fetcherConfig,
 			maxPages: normalizedMaxPages,
 			maxContentLength: Math.min(
-				fetcherConfig.maxContentLength ?? DEFAULT_MAX_CONTENT_LENGTH,
-				DEFAULT_MAX_CONTENT_LENGTH,
+				fetcherConfig.maxContentLength ?? MAX_CONTENT_LENGTH,
+				MAX_CONTENT_LENGTH,
 			),
 		};
 	}

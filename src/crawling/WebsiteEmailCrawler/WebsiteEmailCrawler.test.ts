@@ -163,18 +163,18 @@ describe("WebsiteEmailCrawler", () => {
 		expect(fetch).toHaveBeenCalledTimes(expectedRequests);
 	});
 
-	test("forces safe response and redirect options", async () => {
+	test("forces safe response and timeout options", async () => {
 		const crawler = createCrawler();
 
 		await crawler.crawl(
 			SEED_URL,
-			crawlConfig(1, { maxContentLength: 2_000_000, timeout: 500 }),
+			crawlConfig(1, { maxContentLength: 20_000_000, timeout: 500 }),
 		);
 
 		expect(fetch).toHaveBeenCalledWith(
 			SEED_URL,
 			expect.objectContaining({
-				maxContentLength: 1_000_000,
+				maxContentLength: 10_000_000,
 				timeout: 500,
 			}),
 		);

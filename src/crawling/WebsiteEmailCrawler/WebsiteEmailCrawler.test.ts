@@ -6,7 +6,10 @@ import { TextChunker } from "../../processing/TextChunker";
 import { EmailPattern } from "../../shared";
 import { EmailPatternInferrer } from "../../email-inference/EmailPatternInferrer";
 import type { ParserStrategy } from "../parsers";
-import { WebsiteEmailCrawler } from "./WebsiteEmailCrawler";
+import {
+	MAX_ALLOWED_PAGE_ATTEMPTS,
+	WebsiteEmailCrawler,
+} from "./WebsiteEmailCrawler";
 
 const { get } = vi.hoisted(() => ({ get: vi.fn() }));
 
@@ -217,5 +220,21 @@ describe("WebsiteEmailCrawler", () => {
 		expect(console.warn).toHaveBeenCalledWith(
 			`Failed to fetch ${SEED_URL}: Request failed`,
 		);
+	});
+
+	test("stops after the maximum number of page attempts", async () => {
+		get
+			.mockResolvedValueOnce(createResponse())
+			.mockRejectedValue(new AxiosError("Request failed"));
+		parse.mockResolvedValueOnce({
+			links: Array.from({ length: 100 }, (_, index) => `/page-${index}`),
+			text: "",
+		});
+		const crawler = createCrawler();
+
+		await expect(crawler.crawl(SEED_URL, { maxPages: 20 })).resolves.toEqual({
+			[SEED_URL]: [],
+		});
+		expect(get).toHaveBeenCalledTimes(MAX_ALLOWED_PAGE_ATTEMPTS);
 	});
 });

@@ -11,6 +11,7 @@ import { PAGE_WEIGHTS } from "./pageWeights";
 import { PatternInference } from "../../shared";
 import { EmailPatternInferrer } from "../../email-inference/EmailPatternInferrer";
 
+export const MAX_ALLOWED_PAGE_ATTEMPTS = 50;
 const MAX_ALLOWED_PAGES = 20;
 const MIN_ALLOWED_PAGES = 1;
 const DEFAULT_MAX_CONTENT_LENGTH = 1_000_000;
@@ -60,15 +61,21 @@ export class WebsiteEmailCrawler {
 		const crawlResults: CrawlResult = {};
 
 		let numProcessed = 0;
+		let numAttempts = 0;
 		const seen = new Set<string>();
 		const maxHeap = new MaxHeap<[string, number]>((a, b) => a[1] - b[1]);
 		maxHeap.push([url, 100]);
 		seen.add(url);
 
 		while (maxHeap.size) {
-			const [poppedUrl] = maxHeap.pop()!;
-			if (numProcessed === maxPages) break;
+			if (
+				numProcessed === maxPages ||
+				numAttempts === MAX_ALLOWED_PAGE_ATTEMPTS
+			)
+				break;
 
+			const [poppedUrl] = maxHeap.pop()!;
+			numAttempts++;
 			let res: AxiosResponse;
 			try {
 				res = await axios.get(poppedUrl, axiosConfig);

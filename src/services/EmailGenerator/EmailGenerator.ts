@@ -85,7 +85,7 @@ export class EmailGenerator {
 				);
 
 			const successCandidates = scoredCandidates.filter((res) => res.success);
-			if (!scoredCandidates.length)
+			if (!successCandidates.length)
 				throw new Error("No suitable candidates found");
 
 			return successCandidates.sort((a, b) => b.confidence - a.confidence)[0];

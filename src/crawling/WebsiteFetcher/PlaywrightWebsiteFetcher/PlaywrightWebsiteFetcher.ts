@@ -1,22 +1,32 @@
-import { chromium, Browser, LaunchOptions } from "playwright";
+import { chromium } from "playwright-extra";
+import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import {
 	FetchResult,
 	WebsiteFetcher,
 	WebsiteFetcherConfig,
 } from "../websiteFetcher.types";
+import { Browser, LaunchOptions } from "playwright";
 
 export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
-	constructor(private readonly browser: Browser) {}
+	private constructor(private readonly browser: Browser) {}
 
 	static async createFetcher(
 		options: LaunchOptions,
 	): Promise<PlaywrightWebsiteFetcher> {
-		const browser = await chromium.launch({
-			headless: true,
-			...options,
-		});
+		try {
+			chromium.use(StealthPlugin());
+			const browser = await chromium.launch({
+				...options,
+				headless: true,
+			});
 
-		return new PlaywrightWebsiteFetcher(browser);
+			return new PlaywrightWebsiteFetcher(browser);
+		} catch (err: unknown) {
+			throw new Error(
+				`There was an error creating the fetcher: ${err instanceof Error ? err.message : "An unknown error has occurred."}`,
+				{ cause: err },
+			);
+		}
 	}
 
 	async fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult> {

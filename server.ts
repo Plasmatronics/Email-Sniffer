@@ -20,7 +20,9 @@ import {
 	CompanyWebsiteCollector,
 	DomainResultAndPatternAggregator,
 	InferredEmailConfidenceScorer,
+	PlaywrightWebsiteFetcher,
 } from "./src";
+import { Browser, chromium } from "playwright";
 
 configDotenv({ path: "./.env" });
 
@@ -48,11 +50,24 @@ if (
 	throw new Error("Invalid SERVER_PORT");
 }
 
+let browser: Browser;
+try {
+	browser = await chromium.launch({
+		headless: true,
+	});
+} catch (error: unknown) {
+	console.error("Failed to launch Playwright browser:", error);
+	process.exit(1);
+}
+
+const websiteFetcher = new PlaywrightWebsiteFetcher(browser);
+
 const webSearcher = new WebSearcher(new SerperClient(apiKey));
 const websiteCrawler = new WebsiteEmailCrawler(
 	[new HTMLParserStrategy(), new PDFParserStrategy()],
 	new EmailExtractor(new TextChunker(), new DocumentClamper()),
 	new EmailPatternInferrer(new TextChunker()),
+	websiteFetcher,
 );
 const domainConfidenceScorer = new DomainConfidenceScorer();
 const mxRecordRetriever = new MXRecordRetriever();
@@ -143,16 +158,25 @@ const server = app.listen(serverPortNumber, () => {
 	console.log(`app listening on port ${serverPortNumber}`);
 });
 
-const shutdown = (signal: string) => {
-	console.log(`Received ${signal}, closing server connection`);
+let shuttingDown = false;
 
-	server.close((err) => {
+const shutdown = (signal: string) => {
+	if (shuttingDown) return;
+	shuttingDown = true;
+
+	console.log(`Received ${signal}, shutting down`);
+
+	server.close(async (err) => {
 		if (err) {
 			console.error(err);
-			process.exit(1);
+			process.exitCode = 1;
 		}
-
-		process.exit(0);
+		try {
+			await browser.close();
+		} catch (err: unknown) {
+			console.error("Browser shutdown failed", err);
+			process.exitCode = 1;
+		}
 	});
 };
 

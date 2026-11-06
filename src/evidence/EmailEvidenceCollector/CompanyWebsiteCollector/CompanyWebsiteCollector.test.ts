@@ -9,6 +9,10 @@ import { EmailExtractor } from "../../../processing/EmailExtractor";
 import { EmailPatternInferrer } from "../../../email-inference/EmailPatternInferrer";
 import { TextChunker } from "../../../processing/TextChunker";
 import { WebsiteEmailCrawler } from "../../../crawling/WebsiteEmailCrawler";
+import {
+	DEFAULT_WEBSITE_FETCHER_CONFIG,
+	type WebsiteFetcher,
+} from "../../../crawling/WebsiteFetcher";
 import { CompanyWebsiteCollector } from "./CompanyWebsiteCollector";
 
 const COMPANY_URL = "https://example.com";
@@ -19,6 +23,7 @@ function createCollector() {
 		[],
 		new EmailExtractor(new TextChunker(), new DocumentClamper()),
 		new EmailPatternInferrer(new TextChunker()),
+		{ fetch: vi.fn() } as WebsiteFetcher,
 	);
 	const domainConfidenceScorer = new DomainConfidenceScorer();
 	const crawl = vi.spyOn(websiteCrawler, "crawl");
@@ -85,7 +90,10 @@ describe("CompanyWebsiteCollector", () => {
 			},
 		]);
 
-		expect(crawl).toHaveBeenCalledWith(COMPANY_URL, { maxPages: 3 });
+		expect(crawl).toHaveBeenCalledWith(COMPANY_URL, {
+			maxPages: 3,
+			...DEFAULT_WEBSITE_FETCHER_CONFIG,
+		});
 		expect(validateDomain).toHaveBeenCalledWith(
 			SOURCE_URL,
 			"example.com",

@@ -8,6 +8,7 @@ import {
 	EmailEvidenceCollector,
 	EmailEvidence,
 } from "../EmailEvidenceCollector";
+import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../../../crawling";
 
 export interface CompanyWebsiteCollectionInput {
 	companyUrl: string;
@@ -49,6 +50,7 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 			companyUrl,
 			{
 				maxPages: this.config!.numPagesToCrawl,
+				...DEFAULT_WEBSITE_FETCHER_CONFIG,
 			},
 		);
 

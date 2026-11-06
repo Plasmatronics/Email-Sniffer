@@ -28,6 +28,7 @@ export class SerperClient implements WebSearchClient, SnifferIntegration {
 					},
 				},
 			);
+
 			const parsedApiRes = SerperResponseSchema.parse(response.data);
 			return parsedApiRes.organic;
 		} catch (err: unknown) {

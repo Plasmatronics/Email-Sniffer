@@ -50,17 +50,13 @@ if (
 	throw new Error("Invalid SERVER_PORT");
 }
 
-let browser: Browser;
+let websiteFetcher: PlaywrightWebsiteFetcher;
 try {
-	browser = await chromium.launch({
-		headless: true,
-	});
+	websiteFetcher = await PlaywrightWebsiteFetcher.createFetcher({});
 } catch (error: unknown) {
 	console.error("Failed to launch Playwright browser:", error);
 	process.exit(1);
 }
-
-const websiteFetcher = new PlaywrightWebsiteFetcher(browser);
 
 const webSearcher = new WebSearcher(new SerperClient(apiKey));
 const websiteCrawler = new WebsiteEmailCrawler(
@@ -172,7 +168,7 @@ const shutdown = (signal: string) => {
 			process.exitCode = 1;
 		}
 		try {
-			await browser.close();
+			await websiteFetcher.close();
 		} catch (err: unknown) {
 			console.error("Browser shutdown failed", err);
 			process.exitCode = 1;

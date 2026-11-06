@@ -152,16 +152,25 @@ const server = app.listen(serverPortNumber, () => {
 	console.log(`app listening on port ${serverPortNumber}`);
 });
 
-const shutdown = (signal: string) => {
-	console.log(`Received ${signal}, closing server connection`);
+let shuttingDown = false;
 
-	server.close((err) => {
+const shutdown = (signal: string) => {
+	if (shuttingDown) return;
+	shuttingDown = true;
+
+	console.log(`Received ${signal}, shutting down`);
+
+	server.close(async (err) => {
 		if (err) {
 			console.error(err);
-			process.exit(1);
+			process.exitCode = 1;
 		}
-
-		process.exit(0);
+		try {
+			await browser.close();
+		} catch (err: unknown) {
+			console.error("Browser shutdown failed", err);
+			process.exitCode = 1;
+		}
 	});
 };
 

@@ -22,7 +22,7 @@ import {
 	InferredEmailConfidenceScorer,
 	PlaywrightWebsiteFetcher,
 } from "./src";
-import { chromium } from "playwright";
+import { Browser, chromium } from "playwright";
 
 configDotenv({ path: "./.env" });
 
@@ -50,9 +50,15 @@ if (
 	throw new Error("Invalid SERVER_PORT");
 }
 
-const browser = await chromium.launch({
-	headless: true,
-});
+let browser: Browser;
+try {
+	browser = await chromium.launch({
+		headless: true,
+	});
+} catch (error: unknown) {
+	console.error("Failed to launch Playwright browser:", error);
+	process.exit(1);
+}
 
 const websiteFetcher = new PlaywrightWebsiteFetcher(browser);
 

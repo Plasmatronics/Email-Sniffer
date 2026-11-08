@@ -1,4 +1,3 @@
-import { configDotenv } from "dotenv";
 import express from "express";
 import z from "zod";
 import {
@@ -22,33 +21,14 @@ import {
 	InferredEmailConfidenceScorer,
 	PlaywrightWebsiteFetcher,
 } from "./src";
-import { Browser, chromium } from "playwright";
-
-configDotenv({ path: "./.env" });
+import { loadEnv } from "./src/utils";
 
 const {
-	FROM_MAILBOX: fromEmail,
-	SMTP_EHLO_HOSTNAME: ehloHostName,
-	SERVER_PORT: serverPort,
-	SERPER_API_KEY: apiKey,
-} = process.env;
-if (!fromEmail)
-	throw new Error("Missing configuration variable for FROM_MAILBOX");
-if (!ehloHostName)
-	throw new Error("Missing configuration variable for SMTP_EHLO_HOSTNAME");
-if (!serverPort)
-	throw new Error("Missing configuration variable for SERVER_PORT");
-if (!apiKey)
-	throw new Error("Missing configuration variable for SERPER_API_KEY");
-
-const serverPortNumber = Number(serverPort);
-if (
-	!Number.isInteger(serverPortNumber) ||
-	serverPortNumber <= 0 ||
-	serverPortNumber > 65535
-) {
-	throw new Error("Invalid SERVER_PORT");
-}
+	fromEmail,
+	ehloHostName,
+	serverPort: serverPortNumber,
+	apiKey,
+} = loadEnv();
 
 let websiteFetcher: PlaywrightWebsiteFetcher;
 try {

@@ -1,4 +1,4 @@
-name: AI PR Review
+name: Email Sniffer Automated Review
 
 on:
   pull_request:

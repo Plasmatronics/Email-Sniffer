@@ -10,6 +10,7 @@ import {
 	EmailEvidence,
 } from "../EmailEvidenceCollector";
 import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../../../crawling";
+import { logger } from "../../../infrastructure";
 
 export interface PdfCollectionInput {
 	companyUrl: string;
@@ -26,26 +27,36 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 	PdfCollectionInput,
 	PdfCollectionDependencies
 > {
+	private readonly serviceName = "PdfSearchCollector";
+
 	constructor(dependencies: PdfCollectionDependencies) {
 		super(dependencies);
 	}
 
 	async collect(input: PdfCollectionInput): Promise<EmailEvidence[]> {
+		const startTime = Date.now();
 		const { topChoiceDomain, companyUrl } = input;
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			companyUrl,
+			topChoiceDomain,
+		});
+		childLogger.debug("Collecting PDF evidence");
+
 		const normalizedCompanyUrl = extractDomain(companyUrl);
 		const normalizedTopChoiceDomain = extractDomain(topChoiceDomain ?? "");
 
 		if (!normalizedCompanyUrl || !normalizedTopChoiceDomain) {
 			if (topChoiceDomain && !normalizedTopChoiceDomain)
-				console.warn(
-					`Unable to collect comprehensive pdf search results for domain "${topChoiceDomain}" at company "${companyUrl}" due to malformed input`,
+				childLogger.warn(
+					"Malformed top-choice domain; falling back to company domain",
 				);
 
 			if (!normalizedCompanyUrl) {
-				console.error(
-					`Unable to collect any pdf search results for company "${companyUrl}" due to malformed input`,
+				childLogger.warn(
+					{ durationMs: Date.now() - startTime },
+					"Unable to collect evidence because the company URL is malformed",
 				);
-
 				return [];
 			}
 		}
@@ -95,12 +106,23 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 
 		const errors = pdfScrapingRes
 			.filter((res) => res.status === "rejected")
-			.map((res) => res.reason)
-			.join("\n");
-		if (errors.length) console.error(errors);
+			.map((res) => res.reason);
+		if (errors.length) {
+			for (const err of errors)
+				childLogger.warn(
+					{ err, durationMs: Date.now() - startTime },
+					"PDF page crawl failed",
+				);
+		}
 
-		return pdfScrapingRes.flatMap((res) =>
+		const evidence = pdfScrapingRes.flatMap((res) =>
 			res.status === "fulfilled" ? res.value : [],
 		);
+		childLogger.debug(
+			{ evidence: evidence.length, durationMs: Date.now() - startTime },
+			"Evidence collection completed",
+		);
+
+		return evidence;
 	}
 }

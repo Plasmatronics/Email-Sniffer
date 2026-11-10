@@ -6,6 +6,8 @@ import {
 } from "./DomainConfidenceScorer.types";
 import { TRUSTED_PAGE_PATHS } from "./trustedPagePaths";
 import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
+import { logger } from "../../infrastructure";
+import { Logger } from "pino";
 
 const DEFAULT_DOMAIN_CONFIDENCE_SCORER_CONFIG = {
 	substringMatchPassThreshold: 50,
@@ -19,6 +21,8 @@ const PERFECT_OVERLAP = 100;
 export const FOUND_ON_COMPANY_PAGE_MIN_SCORE = 15;
 
 export class DomainConfidenceScorer {
+	private readonly serviceName = "DomainConfidenceScorer";
+
 	constructor(
 		private domainConfidenceScorerConfig: DomainConfidenceScorerConfig = DEFAULT_DOMAIN_CONFIDENCE_SCORER_CONFIG,
 	) {}
@@ -28,13 +32,40 @@ export class DomainConfidenceScorer {
 		domain: string,
 		companyUrl: string,
 	): VerifiedDomainData {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			source,
+			domain,
+			companyUrl,
+		});
+		childLogger.debug("Validating domain");
 		let confidence = 0;
-		confidence = this.validateDomainSource(confidence, source, companyUrl);
-		confidence = this.validateSubstringMatch(confidence, domain, companyUrl);
+		confidence = this.validateDomainSource(
+			confidence,
+			source,
+			companyUrl,
+			childLogger,
+		);
+		confidence = this.validateSubstringMatch(
+			confidence,
+			domain,
+			companyUrl,
+			childLogger,
+		);
+		const verificationResult = this.getVerificationResult(confidence);
 
+		childLogger.info(
+			{
+				confidence,
+				verificationResult,
+				durationMs: Date.now() - startTime,
+			},
+			"Domain validation completed",
+		);
 		return {
 			confidence: confidence,
-			verificationResult: this.getVerificationResult(confidence),
+			verificationResult,
 			domain: domain,
 		};
 	}
@@ -55,29 +86,26 @@ export class DomainConfidenceScorer {
 		confidence: number,
 		source: string,
 		companyUrl: string,
+		childLogger: Logger,
 	): number {
 		const normalizedSourceUrl = this.normalizeUrlToDomain(source);
 		const normalizedCompanyUrl = this.normalizeUrlToDomain(companyUrl);
 		if (!normalizedSourceUrl || !normalizedCompanyUrl) {
-			if (!normalizedSourceUrl)
-				console.warn(
-					`Could not extract domain from source URL: "${normalizedSourceUrl}".`,
-				);
+			childLogger.warn("Source URL Domain Extraction Failed");
+
 			if (!normalizedCompanyUrl)
-				console.warn(
-					`Could not extract domain from company URL: "${normalizedCompanyUrl}".`,
-				);
+				childLogger.warn("Company URL Domain Extraction Failed");
 			return 0;
 		}
 
 		let addedConfidence = 0;
 		if (normalizedCompanyUrl === normalizedSourceUrl)
-			addedConfidence += this.getUrlConfidenceScore(source);
+			addedConfidence += this.getUrlConfidenceScore(source, childLogger);
 
 		return this.updateConfidence(confidence, addedConfidence);
 	}
 
-	private getUrlConfidenceScore(url: string): number {
+	private getUrlConfidenceScore(url: string, childLogger: Logger): number {
 		try {
 			const keywords = getKeywordsFromUrl(url);
 			const urlConfidenceScore = getUrlWeightFromKeywords(
@@ -87,9 +115,7 @@ export class DomainConfidenceScorer {
 
 			return Math.max(FOUND_ON_COMPANY_PAGE_MIN_SCORE, urlConfidenceScore);
 		} catch (err: unknown) {
-			console.warn(
-				`Failed to get URL confidence score for ${url}: ${err instanceof Error ? err.message : "An unknown error occurred."}`,
-			);
+			childLogger.warn({ err }, "Failed to get URL Confidence Score");
 
 			return 0;
 		}
@@ -99,13 +125,12 @@ export class DomainConfidenceScorer {
 		confidence: number,
 		domain: string,
 		companyUrl: string,
+		childLogger: Logger,
 	): number {
 		const companyUrlOriginal = this.normalizeUrlToDomain(companyUrl);
 		const unverifiedDomainOriginal = domain;
 		if (!companyUrlOriginal) {
-			console.warn(
-				`Could not extract domain from company URL: "${companyUrlOriginal}".`,
-			);
+			childLogger.warn("Domain Extraction From Company URL Failed");
 
 			return 0;
 		}
@@ -117,12 +142,14 @@ export class DomainConfidenceScorer {
 
 		if (!companyUrlSLD || !unverifiedSLD) {
 			if (!companyUrlSLD)
-				console.warn(
-					`Could not extract second-level domain from company URL: "${companyUrlOriginal}".`,
+				childLogger.warn(
+					"Second Level Domain Extraction Failed From Company URL",
 				);
+
 			if (!unverifiedSLD)
-				console.warn(
-					`Could not extract second-level domain from unverified domain: "${unverifiedDomainOriginal}".`,
+				childLogger.warn(
+					{ domain },
+					"Second Level Domain Extraction Failed From Domain",
 				);
 			return 0;
 		}

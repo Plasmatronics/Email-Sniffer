@@ -10,6 +10,7 @@ import {
 	WebsiteFetcher,
 	WebsiteFetcherConfig,
 } from "../WebsiteFetcher";
+import { logger } from "../../infrastructure";
 
 export const MAX_ALLOWED_PAGE_ATTEMPTS = 50;
 const MAX_ALLOWED_PAGES = 20;
@@ -23,6 +24,8 @@ export interface WebsiteEmailCrawlerConfig extends WebsiteFetcherConfig {
 export type CrawlResult = Record<string, PatternInference[]>;
 
 export class WebsiteEmailCrawler {
+	private readonly serviceName = "WebsiteEmailCrawler";
+
 	constructor(
 		private readonly parserStrategies: ParserStrategy[],
 		private readonly emailExtractor: EmailExtractor,
@@ -56,6 +59,12 @@ export class WebsiteEmailCrawler {
 		url: string,
 		config: WebsiteEmailCrawlerConfig,
 	): Promise<CrawlResult> {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			crawlUrl: url,
+		});
+
 		const { maxPages, ...fetcherConfig } = this.normalizeConfig(config);
 
 		const crawlResults: CrawlResult = {};
@@ -79,10 +88,16 @@ export class WebsiteEmailCrawler {
 
 			let res: FetchResult;
 			try {
+				childLogger.debug({ pageUrl: poppedUrl }, "Fetching URL");
 				res = await this.websiteFetcher.fetch(poppedUrl, fetcherConfig);
 			} catch (error) {
-				console.warn(
-					`Failed to fetch ${poppedUrl}: ${error instanceof Error ? error.message : "An unknown error occurred."}`,
+				childLogger.warn(
+					{
+						err: error,
+						pageUrl: poppedUrl,
+						durationMs: Date.now() - startTime,
+					},
+					"Failed to fetch page",
 				);
 
 				continue;
@@ -90,8 +105,12 @@ export class WebsiteEmailCrawler {
 
 			const strategy = this.delegateStrategy(res.contentType ?? "");
 			if (!strategy) {
-				console.warn(
-					`We are not able to process ${poppedUrl} because it doesnt have a content type we can process`,
+				childLogger.warn(
+					{
+						pageUrl: poppedUrl,
+						contentType: res.contentType,
+					},
+					"No applicable parser found for content type",
 				);
 
 				continue;
@@ -100,20 +119,30 @@ export class WebsiteEmailCrawler {
 			let links: string[];
 			let text: string;
 			try {
+				childLogger.debug({ pageUrl: poppedUrl }, "Parsing data");
 				const strategyRes = await strategy.parse(res.data);
 				links = strategyRes.links;
 				text = strategyRes.text;
 			} catch (err: unknown) {
-				console.warn(
-					`${err instanceof Error ? err.message : `An unknown error has occurred whilst parsing the content for ${poppedUrl}`}`,
+				childLogger.warn(
+					{ err, pageUrl: poppedUrl, durationMs: Date.now() - startTime },
+					"Error during content parsing",
 				);
 
 				continue;
 			}
 
 			const traversableLinks = this.getTraversableLinks(links, poppedUrl);
-			const textExtractedEmails = this.emailExtractor.extractEmailMatches(text);
+			childLogger.debug(
+				{
+					pageUrl: poppedUrl,
+					linksFound: links.length,
+					traversableLinks: traversableLinks.length,
+				},
+				"Page links extracted",
+			);
 
+			const textExtractedEmails = this.emailExtractor.extractEmailMatches(text);
 			crawlResults[poppedUrl] = this.patternInferrer.inferEmailPatterns(
 				textExtractedEmails,
 				text,
@@ -128,8 +157,9 @@ export class WebsiteEmailCrawler {
 					const urlKeywords = getKeywordsFromUrl(nextLink);
 					weight = getUrlWeightFromKeywords(urlKeywords, PAGE_WEIGHTS);
 				} catch (err: unknown) {
-					console.warn(
-						`Failed to get URL weight for ${nextLink}: ${err instanceof Error ? err.message : "An unknown error occurred."}`,
+					childLogger.warn(
+						{ err, pageUrl: poppedUrl },
+						"Error during page weight retrieval",
 					);
 
 					continue;
@@ -141,6 +171,13 @@ export class WebsiteEmailCrawler {
 			numProcessed++;
 		}
 
+		childLogger.debug(
+			{
+				pagesProcessed: numProcessed,
+				durationMs: Date.now() - startTime,
+			},
+			"Website crawl completed",
+		);
 		return crawlResults;
 	}
 

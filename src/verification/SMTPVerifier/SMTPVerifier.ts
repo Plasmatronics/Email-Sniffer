@@ -1,5 +1,8 @@
 import net, { type Socket } from "node:net";
 import z from "zod";
+import type { Logger } from "pino";
+import { logger } from "../../infrastructure";
+import { extractDomain } from "../../utils";
 
 export type SMTPVerificationResult = {
 	status: "accepted" | "retryable" | "rejected" | "error" | "unknown";
@@ -13,6 +16,8 @@ const GLOBAL_TIMEOUT = 45_000;
 const responseLineRegex = /^(\d{3})([- ])(.*)$/;
 
 export class SMTPVerifier {
+	private readonly serviceName = "SMTPVerifier";
+
 	private readonly socketErrors = new WeakMap<Socket, Error>();
 
 	constructor(
@@ -28,32 +33,60 @@ export class SMTPVerifier {
 		email: string,
 		mxRecords: string[],
 	): Promise<SMTPVerificationResult> {
+		const startTime = Date.now();
+		const domain = extractDomain(email);
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			domain: domain || undefined,
+			mxRecords: mxRecords.length,
+		});
+		if (!domain) {
+			const errMessage =
+				"Malformed email input disallowed SMTP verification to complete";
+
+			childLogger.warn({ durationMs: Date.now() - startTime }, errMessage);
+			return {
+				status: "error",
+				message: errMessage,
+			};
+		}
+
+		childLogger.debug("Starting SMTP verification");
+		const complete = (result: SMTPVerificationResult) => {
+			childLogger.debug(
+				{ status: result.status, durationMs: Date.now() - startTime },
+				"SMTP verification completed",
+			);
+			return result;
+		};
+
 		let lastFailure: SMTPVerificationResult | undefined;
 
 		for (const record of mxRecords) {
-			const result = await this.verifySingleMX(email, record);
+			const result = await this.verifySingleMX(email, record, childLogger);
 
 			if (
 				result.status === "accepted" ||
 				result.status === "rejected" ||
 				result.status === "unknown"
 			)
-				return result;
+				return complete(result);
 
 			lastFailure = result;
 		}
 
-		return (
+		return complete(
 			lastFailure ?? {
 				status: "error",
 				message: "No MX records were available.",
-			}
+			},
 		);
 	}
 
 	private async verifySingleMX(
 		email: string,
 		mxDestinationHost: string,
+		childLogger: Logger,
 	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
 		const globalTimer = setTimeout(() => {
@@ -106,7 +139,7 @@ export class SMTPVerifier {
 			try {
 				if (socket) await this.closeConnection(socket);
 			} catch (err: unknown) {
-				console.warn("An issue occurred during socket closure");
+				childLogger.warn({ err }, "Failed to close SMTP socket");
 			} finally {
 				clearTimeout(globalTimer);
 			}

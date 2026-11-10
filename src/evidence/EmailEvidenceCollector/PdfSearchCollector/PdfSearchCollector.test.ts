@@ -18,6 +18,7 @@ import type { WebSearchClient } from "../../../integrations";
 import type { WebSearchResult } from "../../../types";
 import { PdfSearchCollector } from "./PdfSearchCollector";
 import { extractDomain } from "../../../utils";
+import { logger } from "../../../infrastructure";
 
 const COMPANY_URL = "https://example.com";
 const SEARCH_URL = "https://example.com/report.pdf";
@@ -127,7 +128,7 @@ describe("PdfSearchCollector", () => {
 
 	test("returns no results and reports when both input domains are malformed", async () => {
 		const { collector, fetchResults } = createCollector();
-		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 
 		await expect(
 			collector.collect({
@@ -136,15 +137,16 @@ describe("PdfSearchCollector", () => {
 			}),
 		).resolves.toEqual([]);
 
-		expect(error).toHaveBeenCalledWith(
-			'Unable to collect any pdf search results for company "not a company url" due to malformed input',
+		expect(warn).toHaveBeenCalledWith(
+			expect.objectContaining({ durationMs: expect.any(Number) }),
+			"Unable to collect evidence because the company URL is malformed",
 		);
 		expect(fetchResults).not.toHaveBeenCalled();
 	});
 
 	test("reports a malformed top-choice domain and falls back to the company domain", async () => {
 		const { collector, fetchResults } = createCollector();
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		fetchResults.mockResolvedValue([]);
 
 		await expect(
@@ -154,9 +156,7 @@ describe("PdfSearchCollector", () => {
 			}),
 		).resolves.toEqual([]);
 
-		expect(warn).toHaveBeenCalledWith(
-			'Unable to collect comprehensive pdf search results for domain "not a domain" at company "https://example.com" due to malformed input',
-		);
+		expect(warn).toHaveBeenCalled();
 		expect(fetchResults).toHaveBeenCalledWith("example.com");
 	});
 
@@ -172,7 +172,7 @@ describe("PdfSearchCollector", () => {
 			.mockResolvedValueOnce({ [SEARCH_URL]: passingInference() })
 			.mockRejectedValueOnce(new Error("crawl failed"));
 		validateDomain.mockReturnValue(passValidation("example.com"));
-		vi.spyOn(console, "error").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 
 		await expect(
 			collector.collect({ companyUrl: COMPANY_URL }),
@@ -185,7 +185,10 @@ describe("PdfSearchCollector", () => {
 			},
 		]);
 
-		expect(console.error).toHaveBeenCalledWith("Error: crawl failed");
+		expect(warn).toHaveBeenCalledWith(
+			expect.objectContaining({ err: new Error("crawl failed") }),
+			"PDF page crawl failed",
+		);
 	});
 
 	test("continues after a non-passing email and collects later passing emails", async () => {

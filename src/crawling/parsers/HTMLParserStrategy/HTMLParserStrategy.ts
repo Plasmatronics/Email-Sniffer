@@ -1,13 +1,18 @@
 import * as cheerio from "cheerio";
 import { Text } from "domhandler";
 import { ParsedResults, ParserStrategy } from "../parserStrategy.types";
+import { logger } from "../../../infrastructure";
 
 export class HTMLParserStrategy implements ParserStrategy {
+	private readonly serviceName = "HTMLParserStrategy";
+
 	supports(contentType: string): boolean {
 		return contentType.split(";")[0].trim().toLowerCase() === "text/html";
 	}
 
 	async parse(content: Buffer): Promise<ParsedResults> {
+		const startTime = Date.now();
+		const childLogger = logger.child({ serviceName: this.serviceName });
 		const $ = cheerio.loadBuffer(content);
 
 		$("script, style, noscript, template, svg").remove();
@@ -19,8 +24,11 @@ export class HTMLParserStrategy implements ParserStrategy {
 			try {
 				const recipients = decodeURIComponent(new URL(href).pathname);
 				$(element).append(new Text(` ${recipients}`));
-			} catch {
-				console.warn(`Encountered malformed mailto: ${href}`);
+			} catch (err: unknown) {
+				childLogger.warn(
+					{ err, href, durationMs: Date.now() - startTime },
+					"Encountered malformed mailto link",
+				);
 			}
 		});
 
@@ -33,9 +41,14 @@ export class HTMLParserStrategy implements ParserStrategy {
 			.map((_, el) => $(el).attr("href"))
 			.get();
 
-		return {
+		const result = {
 			text,
 			links,
 		};
+		childLogger.debug(
+			{ links: links.length, durationMs: Date.now() - startTime },
+			"HTML parsing completed",
+		);
+		return result;
 	}
 }

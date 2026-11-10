@@ -6,8 +6,11 @@ import {
 	WebsiteFetcherConfig,
 } from "../websiteFetcher.types";
 import { Browser, LaunchOptions } from "playwright";
+import { logger } from "../../../infrastructure";
 
 export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
+	private readonly serviceName = "PlaywrightWebsiteFetcher";
+
 	private constructor(private readonly browser: Browser) {}
 
 	static async createFetcher(
@@ -30,9 +33,14 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 	}
 
 	async fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult> {
-		const page = await this.browser.newPage();
+		const start = Date.now();
+		const childLogger = logger.child({ serviceName: this.serviceName, url });
+		childLogger.debug("Fetching website");
+
+		let page: Awaited<ReturnType<Browser["newPage"]>> | undefined;
 
 		try {
+			page = await this.browser.newPage();
 			const response = await page.goto(url, {
 				waitUntil: "domcontentloaded",
 				timeout: config.timeout,
@@ -47,12 +55,27 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 				throw new Error("Content exceeds maximum length");
 			}
 
+			childLogger.debug(
+				{
+					statusCode: response.status(),
+					contentLength: buffer.byteLength,
+					durationMs: Math.round(Date.now() - start),
+				},
+				"Website fetched successfully",
+			);
+
 			return {
 				data: buffer,
 				contentType: await response.headerValue("content-type"),
 			};
+		} catch (err: unknown) {
+			childLogger.error(
+				{ err, durationMs: Date.now() - start },
+				"Website fetch failed",
+			);
+			throw err;
 		} finally {
-			await page.close();
+			if (page) await page.close();
 		}
 	}
 

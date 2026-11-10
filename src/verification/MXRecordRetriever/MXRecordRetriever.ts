@@ -2,6 +2,7 @@ import { MinHeap } from "mnemonist";
 import dns from "node:dns/promises";
 import type { MxRecord } from "node:dns";
 import { extractDomain } from "../../utils";
+import { logger } from "../../infrastructure";
 
 export const MAX_RECORDS = 5;
 export const MIN_RECORDS = 1;
@@ -14,6 +15,8 @@ const NO_MX_RECORD_DNS_ERROR_CODES = new Set([
 ]);
 
 export class MXRecordRetriever {
+	private readonly serviceName = "MXRecordRetriever";
+
 	private numRecordsToReturn: number;
 
 	constructor(maxRecords: number = NUM_RECORDS_DEFAULT) {
@@ -28,8 +31,21 @@ export class MXRecordRetriever {
 	}
 
 	async findMXRecords(domain: string): Promise<string[]> {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			domain,
+		});
+		childLogger.debug("Starting MX lookup");
+
 		const destinationDomain = extractDomain(domain);
-		if (!destinationDomain) return [];
+		if (!destinationDomain) {
+			childLogger.warn(
+				{ durationMs: Date.now() - startTime },
+				"MX lookup failed because the domain is malformed",
+			);
+			return [];
+		}
 
 		let res: MxRecord[];
 		try {
@@ -40,9 +56,17 @@ export class MXRecordRetriever {
 				"code" in error &&
 				NO_MX_RECORD_DNS_ERROR_CODES.has(String(error.code))
 			) {
+				childLogger.debug(
+					{ err: error, durationMs: Date.now() - startTime },
+					"MX lookup failed",
+				);
 				return [];
 			}
 
+			childLogger.error(
+				{ err: error, durationMs: Date.now() - startTime },
+				"MX lookup failed",
+			);
 			throw error;
 		}
 
@@ -55,6 +79,13 @@ export class MXRecordRetriever {
 			if (minHeap.size) highestPriorityRecords.push(minHeap.pop()!.exchange);
 		}
 
+		childLogger.debug(
+			{
+				records: highestPriorityRecords.length,
+				durationMs: Date.now() - startTime,
+			},
+			"MX lookup completed",
+		);
 		return highestPriorityRecords;
 	}
 }

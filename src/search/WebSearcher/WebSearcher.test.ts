@@ -2,6 +2,7 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import type { WebSearchClient } from "../../integrations";
 import type { WebSearchResult } from "../../types";
 import { WebSearcher } from "./WebSearcher";
+import { logger } from "../../infrastructure";
 
 const pdfResult: WebSearchResult = {
 	title: "Example annual report",
@@ -52,13 +53,16 @@ describe("WebSearcher", () => {
 		search
 			.mockRejectedValueOnce(searchError)
 			.mockResolvedValueOnce([contactResult]);
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const searcher = new WebSearcher({ search });
 
 		await expect(searcher.fetchResults("Example Company")).resolves.toEqual([
 			contactResult,
 		]);
-		expect(warn).toHaveBeenCalledWith(searchError);
+		expect(warn).toHaveBeenCalledWith(
+			{ err: searchError },
+			"Search request failed",
+		);
 	});
 
 	test("returns no results when every query fails", async () => {

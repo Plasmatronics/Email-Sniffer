@@ -1,9 +1,12 @@
+import { logger } from "../../infrastructure";
 import { WebSearchClient } from "../../integrations";
 import { WebSearchResult } from "../../types";
 
 const QUERY_ADDONS = ["filetype:pdf", "contact"];
 
 export class WebSearcher {
+	private readonly serviceName = "WebSearcher";
+
 	constructor(private readonly webSearchClient: WebSearchClient) {}
 
 	private createSearchQueries(baseQuery: string): string[] {
@@ -11,7 +14,15 @@ export class WebSearcher {
 	}
 
 	public async fetchResults(baseQuery: string): Promise<WebSearchResult[]> {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			baseQuery,
+		});
+
 		try {
+			childLogger.debug("Fetching search results");
+
 			const queries = this.createSearchQueries(baseQuery);
 			const searchResults = await Promise.allSettled(
 				queries.map((query) => this.webSearchClient.search(query)),
@@ -24,16 +35,23 @@ export class WebSearcher {
 				throw new Error("Could not retrieve any search results");
 
 			for (const result of searchResults) {
-				if (result.status === "rejected") console.warn(result.reason);
+				if (result.status === "rejected")
+					childLogger.warn({ err: result.reason }, "Search request failed");
 			}
 
+			childLogger.debug(
+				{
+					results: successfulSearchResults.length,
+					durationMs: Date.now() - startTime,
+				},
+				"Search results fetched",
+			);
 			return successfulSearchResults;
 		} catch (err: unknown) {
-			console.error(
-				`An error occurred while fetching results for the query ${baseQuery}: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
-				{ cause: err },
+			childLogger.error(
+				{ err, durationMs: Date.now() - startTime },
+				"Failed to fetch results",
 			);
-
 			return [];
 		}
 	}

@@ -9,6 +9,7 @@ import {
 	EmailEvidence,
 } from "../EmailEvidenceCollector";
 import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../../../crawling";
+import { logger } from "../../../infrastructure";
 
 export interface CompanyWebsiteCollectionInput {
 	companyUrl: string;
@@ -26,6 +27,8 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 	CompanyWebsiteCollectionDependencies,
 	CompanyWebsiteCollectionConfig
 > {
+	private readonly serviceName = "CompanyWebsiteCollector";
+
 	constructor(
 		dependencies: CompanyWebsiteCollectionDependencies,
 		config: CompanyWebsiteCollectionConfig,
@@ -36,11 +39,19 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 	async collect(
 		input: CompanyWebsiteCollectionInput,
 	): Promise<EmailEvidence[]> {
+		const startTime = Date.now();
 		const { companyUrl } = input;
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			companyUrl,
+		});
+		childLogger.debug("Collecting website evidence");
+
 		const normalizedCompanyUrl = extractDomain(companyUrl);
 		if (!normalizedCompanyUrl) {
-			console.error(
-				`Unable to collect any website search results for company "${companyUrl}" due to malformed input`,
+			childLogger.warn(
+				{ durationMs: Date.now() - startTime },
+				"Unable to collect evidence because the company URL is malformed",
 			);
 
 			return [];
@@ -78,6 +89,14 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 				});
 			}
 		}
+
+		childLogger.debug(
+			{
+				evidence: emailEvidenceArr.length,
+				durationMs: Date.now() - startTime,
+			},
+			"Evidence collection completed",
+		);
 
 		return emailEvidenceArr;
 	}

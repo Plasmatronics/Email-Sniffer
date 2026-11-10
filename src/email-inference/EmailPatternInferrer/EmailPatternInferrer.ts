@@ -6,14 +6,23 @@ import {
 } from "../../shared";
 import { ExtractedEmail } from "../../processing/EmailExtractor";
 import { TextChunker } from "../../processing/TextChunker";
+import { logger } from "../../infrastructure";
 
 export class EmailPatternInferrer {
+	private readonly serviceName = "EmailPatternInferrer";
+
 	constructor(private chunker: TextChunker) {}
 
 	inferEmailPatterns(
 		extractedEmails: ExtractedEmail[],
 		document: string,
 	): PatternInference[] {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			emails: extractedEmails.length,
+		});
+		childLogger.debug("Attempting batch email pattern inference");
 		const chunkedDocument = this.chunker.chunk(document);
 		const inferredEmailsAndPatterns: PatternInference[] = [];
 
@@ -23,6 +32,13 @@ export class EmailPatternInferrer {
 			inferredEmailsAndPatterns.push(inferrence);
 		}
 
+		childLogger.debug(
+			{
+				inferences: inferredEmailsAndPatterns.length,
+				durationMs: Date.now() - startTime,
+			},
+			"Batch email pattern inference completed",
+		);
 		return inferredEmailsAndPatterns;
 	}
 

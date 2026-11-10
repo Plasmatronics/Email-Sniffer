@@ -3,6 +3,7 @@ import {
 	EmailInferenceCandidate,
 	EmailInferenceResults,
 } from "../../application/EmailGenerator";
+import { logger } from "../../infrastructure";
 
 export interface EmailScorerWeights {
 	domainWeight: number;
@@ -20,6 +21,8 @@ const MIN_SCORE = 0;
 const DOMAIN_CONFIDENCE_EXPONENT = 2;
 
 export class InferredEmailConfidenceScorer {
+	private readonly serviceName = "InferredEmailConfidenceScorer";
+
 	constructor(private config: InferredEmailConfidenceScorerConfig) {
 		const normalizedWeights = this.normalizeWeights(config.weights);
 		const normalizedPassingScore = this.clampScore(config.passingScore);
@@ -34,7 +37,14 @@ export class InferredEmailConfidenceScorer {
 		results: EmailInferenceCandidate[],
 		topPatterns: Map<KnownEmailPattern, number>,
 	): EmailInferenceResults[] {
-		return results.map((res) => {
+		const startTime = Date.now();
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			results: results.length,
+		});
+		childLogger.info("Scoring Inferred Email Candidates");
+
+		const res = results.map((res) => {
 			const domainContribution =
 				this.calculateDomainContribution(res.domainConfidence) *
 				this.config.weights.domainWeight;
@@ -70,6 +80,13 @@ export class InferredEmailConfidenceScorer {
 				};
 			}
 		});
+
+		const numPassing = res.filter((cur) => cur.success).length;
+		childLogger.info(
+			{ numPassing, durationMs: Date.now() - startTime },
+			"Candidate scoring completed",
+		);
+		return res as EmailInferenceResults[];
 	}
 
 	private calculateDomainContribution(domainConfidence: number): number {

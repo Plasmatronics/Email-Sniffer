@@ -11,6 +11,7 @@ export class HTMLParserStrategy implements ParserStrategy {
 	}
 
 	async parse(content: Buffer): Promise<ParsedResults> {
+		const startTime = Date.now();
 		const childLogger = logger.child({ serviceName: this.serviceName });
 		const $ = cheerio.loadBuffer(content);
 
@@ -24,7 +25,10 @@ export class HTMLParserStrategy implements ParserStrategy {
 				const recipients = decodeURIComponent(new URL(href).pathname);
 				$(element).append(new Text(` ${recipients}`));
 			} catch (err: unknown) {
-				childLogger.warn({ err, href }, "Encountered malformed mailto link");
+				childLogger.warn(
+					{ err, href, durationMs: Date.now() - startTime },
+					"Encountered malformed mailto link",
+				);
 			}
 		});
 
@@ -37,9 +41,14 @@ export class HTMLParserStrategy implements ParserStrategy {
 			.map((_, el) => $(el).attr("href"))
 			.get();
 
-		return {
+		const result = {
 			text,
 			links,
 		};
+		childLogger.debug(
+			{ links: links.length, durationMs: Date.now() - startTime },
+			"HTML parsing completed",
+		);
+		return result;
 	}
 }

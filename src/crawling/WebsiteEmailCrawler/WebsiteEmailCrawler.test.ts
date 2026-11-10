@@ -207,7 +207,7 @@ describe("WebsiteEmailCrawler", () => {
 
 		await expect(crawler.crawl(SEED_URL, crawlConfig(1))).resolves.toEqual({});
 		expect(warn).toHaveBeenCalledWith(
-			{ err: expect.any(Error), pageUrl: SEED_URL },
+			expect.objectContaining({ err: expect.any(Error), pageUrl: SEED_URL }),
 			"Error during content parsing",
 		);
 	});
@@ -219,7 +219,7 @@ describe("WebsiteEmailCrawler", () => {
 
 		await expect(crawler.crawl(SEED_URL, crawlConfig(1))).resolves.toEqual({});
 		expect(warn).toHaveBeenCalledWith(
-			{ err: expect.any(Error), pageUrl: SEED_URL },
+			expect.objectContaining({ err: expect.any(Error), pageUrl: SEED_URL }),
 			"Failed to fetch page",
 		);
 	});

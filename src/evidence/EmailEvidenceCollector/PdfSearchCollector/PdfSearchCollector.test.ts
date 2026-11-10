@@ -138,6 +138,7 @@ describe("PdfSearchCollector", () => {
 		).resolves.toEqual([]);
 
 		expect(warn).toHaveBeenCalledWith(
+			expect.objectContaining({ durationMs: expect.any(Number) }),
 			"Unable to collect evidence because the company URL is malformed",
 		);
 		expect(fetchResults).not.toHaveBeenCalled();
@@ -156,6 +157,7 @@ describe("PdfSearchCollector", () => {
 		).resolves.toEqual([]);
 
 		expect(warn).toHaveBeenCalledWith(
+			expect.objectContaining({ durationMs: expect.any(Number) }),
 			"Malformed top-choice domain; falling back to company domain",
 		);
 		expect(fetchResults).toHaveBeenCalledWith("example.com");
@@ -187,7 +189,7 @@ describe("PdfSearchCollector", () => {
 		]);
 
 		expect(warn).toHaveBeenCalledWith(
-			{ err: new Error("crawl failed") },
+			expect.objectContaining({ err: new Error("crawl failed") }),
 			"PDF page crawl failed",
 		);
 	});

@@ -26,6 +26,7 @@ export class DomainResultAndPatternAggregator {
 	aggregateResults(
 		results: DomainAndPatternAggregation[],
 	): DomainAndPatternAggregation {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			results: results.length,
@@ -45,7 +46,11 @@ export class DomainResultAndPatternAggregator {
 		const domainResults = [...Object.values(domainResultsMap)];
 
 		childLogger.debug(
-			{ patterns: patternFreq.size, domainResults: domainResults.length },
+			{
+				patterns: patternFreq.size,
+				domainResults: domainResults.length,
+				durationMs: Date.now() - startTime,
+			},
 			"Result Aggregation Completed",
 		);
 		return {
@@ -57,6 +62,7 @@ export class DomainResultAndPatternAggregator {
 	async aggregateEvidence(
 		evidence: EmailEvidence[],
 	): Promise<DomainAndPatternAggregation> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			evidence: evidence.length,
@@ -71,7 +77,11 @@ export class DomainResultAndPatternAggregator {
 		);
 
 		childLogger.debug(
-			{ patterns: patternFreq.size, domainResults: domainResults.length },
+			{
+				patterns: patternFreq.size,
+				domainResults: domainResults.length,
+				durationMs: Date.now() - startTime,
+			},
 			"Evidence Aggregation Completed",
 		);
 		return {
@@ -84,6 +94,7 @@ export class DomainResultAndPatternAggregator {
 		evidence: EmailEvidence[],
 		results: DomainResults[],
 	): Promise<DomainAndPatternAggregation> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			evidence: evidence.length,
@@ -124,6 +135,7 @@ export class DomainResultAndPatternAggregator {
 			{
 				patterns: patternFreq.size,
 				domainResults: domainResults.length,
+				durationMs: Date.now() - startTime,
 			},
 			"Result And Evidence Aggregation Completed",
 		);
@@ -137,6 +149,7 @@ export class DomainResultAndPatternAggregator {
 		domainMap: Record<string, EmailEvidenceWithCount>,
 		childLogger: Logger,
 	): Promise<DomainResults[]> {
+		const startTime = Date.now();
 		const domainResults = await Promise.allSettled(
 			Object.entries(domainMap).map(
 				async ([domain, emailEvidenceWithCount]): Promise<DomainResults> => {
@@ -158,7 +171,10 @@ export class DomainResultAndPatternAggregator {
 			.map((res) => res.reason);
 		if (errors.length) {
 			for (const err of errors)
-				childLogger.warn({ err }, "Failed to enrich domain with MX records");
+				childLogger.warn(
+					{ err, durationMs: Date.now() - startTime },
+					"Failed to enrich domain with MX records",
+				);
 		}
 
 		return domainResults

@@ -32,6 +32,7 @@ export class DomainConfidenceScorer {
 		domain: string,
 		companyUrl: string,
 	): VerifiedDomainData {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			source,
@@ -58,6 +59,7 @@ export class DomainConfidenceScorer {
 			{
 				confidence,
 				verificationResult,
+				durationMs: Date.now() - startTime,
 			},
 			"Domain validation completed",
 		);

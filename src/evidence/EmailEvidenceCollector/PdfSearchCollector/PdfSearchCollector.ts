@@ -34,6 +34,7 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 	}
 
 	async collect(input: PdfCollectionInput): Promise<EmailEvidence[]> {
+		const startTime = Date.now();
 		const { topChoiceDomain, companyUrl } = input;
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
@@ -53,6 +54,7 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 
 			if (!normalizedCompanyUrl) {
 				childLogger.warn(
+					{ durationMs: Date.now() - startTime },
 					"Unable to collect evidence because the company URL is malformed",
 				);
 				return [];
@@ -107,14 +109,17 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 			.map((res) => res.reason);
 		if (errors.length) {
 			for (const err of errors)
-				childLogger.warn({ err }, "PDF page crawl failed");
+				childLogger.warn(
+					{ err, durationMs: Date.now() - startTime },
+					"PDF page crawl failed",
+				);
 		}
 
 		const evidence = pdfScrapingRes.flatMap((res) =>
 			res.status === "fulfilled" ? res.value : [],
 		);
 		childLogger.debug(
-			{ evidence: evidence.length },
+			{ evidence: evidence.length, durationMs: Date.now() - startTime },
 			"Evidence collection completed",
 		);
 

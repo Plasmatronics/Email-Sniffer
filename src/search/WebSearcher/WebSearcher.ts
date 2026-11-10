@@ -14,6 +14,7 @@ export class WebSearcher {
 	}
 
 	public async fetchResults(baseQuery: string): Promise<WebSearchResult[]> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			baseQuery,
@@ -38,9 +39,19 @@ export class WebSearcher {
 					childLogger.warn({ err: result.reason }, "Search request failed");
 			}
 
+			childLogger.debug(
+				{
+					results: successfulSearchResults.length,
+					durationMs: Date.now() - startTime,
+				},
+				"Search results fetched",
+			);
 			return successfulSearchResults;
 		} catch (err: unknown) {
-			childLogger.error({ err }, "Failed to fetch results");
+			childLogger.error(
+				{ err, durationMs: Date.now() - startTime },
+				"Failed to fetch results",
+			);
 			return [];
 		}
 	}

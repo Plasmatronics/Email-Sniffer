@@ -31,6 +31,7 @@ export class MXRecordRetriever {
 	}
 
 	async findMXRecords(domain: string): Promise<string[]> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			domain,
@@ -39,7 +40,10 @@ export class MXRecordRetriever {
 
 		const destinationDomain = extractDomain(domain);
 		if (!destinationDomain) {
-			childLogger.warn("MX lookup failed because the domain is malformed");
+			childLogger.warn(
+				{ durationMs: Date.now() - startTime },
+				"MX lookup failed because the domain is malformed",
+			);
 			return [];
 		}
 
@@ -52,9 +56,17 @@ export class MXRecordRetriever {
 				"code" in error &&
 				NO_MX_RECORD_DNS_ERROR_CODES.has(String(error.code))
 			) {
+				childLogger.debug(
+					{ err: error, durationMs: Date.now() - startTime },
+					"MX lookup failed",
+				);
 				return [];
 			}
 
+			childLogger.error(
+				{ err: error, durationMs: Date.now() - startTime },
+				"MX lookup failed",
+			);
 			throw error;
 		}
 
@@ -68,7 +80,10 @@ export class MXRecordRetriever {
 		}
 
 		childLogger.debug(
-			{ records: highestPriorityRecords.length },
+			{
+				records: highestPriorityRecords.length,
+				durationMs: Date.now() - startTime,
+			},
 			"MX lookup completed",
 		);
 		return highestPriorityRecords;

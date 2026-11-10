@@ -37,9 +37,10 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 		const childLogger = logger.child({ serviceName: this.serviceName, url });
 		childLogger.debug("Fetching website");
 
-		const page = await this.browser.newPage();
+		let page: Awaited<ReturnType<Browser["newPage"]>> | undefined;
 
 		try {
+			page = await this.browser.newPage();
 			const response = await page.goto(url, {
 				waitUntil: "domcontentloaded",
 				timeout: config.timeout,
@@ -67,8 +68,14 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 				data: buffer,
 				contentType: await response.headerValue("content-type"),
 			};
+		} catch (err: unknown) {
+			childLogger.error(
+				{ err, durationMs: Date.now() - start },
+				"Website fetch failed",
+			);
+			throw err;
 		} finally {
-			await page.close();
+			if (page) await page.close();
 		}
 	}
 

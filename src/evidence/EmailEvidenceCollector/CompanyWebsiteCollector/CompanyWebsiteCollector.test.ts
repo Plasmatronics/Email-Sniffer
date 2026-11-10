@@ -122,6 +122,7 @@ describe("CompanyWebsiteCollector", () => {
 		).resolves.toEqual([]);
 
 		expect(warn).toHaveBeenCalledWith(
+			expect.objectContaining({ durationMs: expect.any(Number) }),
 			"Unable to collect evidence because the company URL is malformed",
 		);
 		expect(crawl).not.toHaveBeenCalled();

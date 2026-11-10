@@ -17,6 +17,7 @@ export class EmailPatternInferrer {
 		extractedEmails: ExtractedEmail[],
 		document: string,
 	): PatternInference[] {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			emails: extractedEmails.length,
@@ -32,7 +33,10 @@ export class EmailPatternInferrer {
 		}
 
 		childLogger.debug(
-			{ inferences: inferredEmailsAndPatterns.length },
+			{
+				inferences: inferredEmailsAndPatterns.length,
+				durationMs: Date.now() - startTime,
+			},
 			"Batch email pattern inference completed",
 		);
 		return inferredEmailsAndPatterns;

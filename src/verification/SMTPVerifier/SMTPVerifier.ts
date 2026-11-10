@@ -33,24 +33,32 @@ export class SMTPVerifier {
 		email: string,
 		mxRecords: string[],
 	): Promise<SMTPVerificationResult> {
+		const startTime = Date.now();
 		const domain = extractDomain(email);
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			domain: domain || undefined,
+			mxRecords: mxRecords.length,
+		});
 		if (!domain) {
 			const errMessage =
 				"Malformed email input disallowed SMTP verification to complete";
 
-			logger.warn({ serviceName: this.serviceName }, errMessage);
+			childLogger.warn({ durationMs: Date.now() - startTime }, errMessage);
 			return {
 				status: "error",
 				message: errMessage,
 			};
 		}
 
-		const childLogger = logger.child({
-			serviceName: this.serviceName,
-			domain,
-			mxRecords: mxRecords.length,
-		});
 		childLogger.debug("Starting SMTP verification");
+		const complete = (result: SMTPVerificationResult) => {
+			childLogger.debug(
+				{ status: result.status, durationMs: Date.now() - startTime },
+				"SMTP verification completed",
+			);
+			return result;
+		};
 
 		let lastFailure: SMTPVerificationResult | undefined;
 
@@ -62,16 +70,16 @@ export class SMTPVerifier {
 				result.status === "rejected" ||
 				result.status === "unknown"
 			)
-				return result;
+				return complete(result);
 
 			lastFailure = result;
 		}
 
-		return (
+		return complete(
 			lastFailure ?? {
 				status: "error",
 				message: "No MX records were available.",
-			}
+			},
 		);
 	}
 

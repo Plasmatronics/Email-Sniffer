@@ -59,6 +59,7 @@ export class WebsiteEmailCrawler {
 		url: string,
 		config: WebsiteEmailCrawlerConfig,
 	): Promise<CrawlResult> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			crawlUrl: url,
@@ -91,7 +92,11 @@ export class WebsiteEmailCrawler {
 				res = await this.websiteFetcher.fetch(poppedUrl, fetcherConfig);
 			} catch (error) {
 				childLogger.warn(
-					{ err: error, pageUrl: poppedUrl },
+					{
+						err: error,
+						pageUrl: poppedUrl,
+						durationMs: Date.now() - startTime,
+					},
 					"Failed to fetch page",
 				);
 
@@ -101,7 +106,10 @@ export class WebsiteEmailCrawler {
 			const strategy = this.delegateStrategy(res.contentType ?? "");
 			if (!strategy) {
 				childLogger.warn(
-					{ pageUrl: poppedUrl, contentType: res.contentType },
+					{
+						pageUrl: poppedUrl,
+						contentType: res.contentType,
+					},
 					"No applicable parser found for content type",
 				);
 
@@ -117,7 +125,7 @@ export class WebsiteEmailCrawler {
 				text = strategyRes.text;
 			} catch (err: unknown) {
 				childLogger.warn(
-					{ err, pageUrl: poppedUrl },
+					{ err, pageUrl: poppedUrl, durationMs: Date.now() - startTime },
 					"Error during content parsing",
 				);
 
@@ -163,6 +171,13 @@ export class WebsiteEmailCrawler {
 			numProcessed++;
 		}
 
+		childLogger.debug(
+			{
+				pagesProcessed: numProcessed,
+				durationMs: Date.now() - startTime,
+			},
+			"Website crawl completed",
+		);
 		return crawlResults;
 	}
 

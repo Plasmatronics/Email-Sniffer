@@ -37,6 +37,7 @@ export class InferredEmailConfidenceScorer {
 		results: EmailInferenceCandidate[],
 		topPatterns: Map<KnownEmailPattern, number>,
 	): EmailInferenceResults[] {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			results: results.length,
@@ -81,7 +82,10 @@ export class InferredEmailConfidenceScorer {
 		});
 
 		const numPassing = res.filter((cur) => cur.success).length;
-		childLogger.info({ numPassing }, "Candidate scoring completed");
+		childLogger.info(
+			{ numPassing, durationMs: Date.now() - startTime },
+			"Candidate scoring completed",
+		);
 		return res as EmailInferenceResults[];
 	}
 

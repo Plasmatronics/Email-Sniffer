@@ -66,7 +66,7 @@ describe("DocumentClamper", () => {
 		clamper.clamp("123456789", 5);
 
 		expect(warn).toHaveBeenCalledWith(
-			{ truncatedCharacters: 4, maxContentLength: 5 },
+			expect.objectContaining({ truncatedCharacters: 4, maxContentLength: 5 }),
 			"Document content was truncated",
 		);
 	});

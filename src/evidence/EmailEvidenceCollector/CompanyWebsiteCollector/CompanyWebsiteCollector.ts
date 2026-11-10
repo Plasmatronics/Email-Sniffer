@@ -39,6 +39,7 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 	async collect(
 		input: CompanyWebsiteCollectionInput,
 	): Promise<EmailEvidence[]> {
+		const startTime = Date.now();
 		const { companyUrl } = input;
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
@@ -49,6 +50,7 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 		const normalizedCompanyUrl = extractDomain(companyUrl);
 		if (!normalizedCompanyUrl) {
 			childLogger.warn(
+				{ durationMs: Date.now() - startTime },
 				"Unable to collect evidence because the company URL is malformed",
 			);
 
@@ -89,7 +91,10 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 		}
 
 		childLogger.debug(
-			{ evidence: emailEvidenceArr.length },
+			{
+				evidence: emailEvidenceArr.length,
+				durationMs: Date.now() - startTime,
+			},
 			"Evidence collection completed",
 		);
 

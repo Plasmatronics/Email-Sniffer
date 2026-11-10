@@ -26,6 +26,7 @@ export class EmailGenerator {
 	async inferEmail(
 		emailInfo: SearchInformation,
 	): Promise<EmailInferenceResults> {
+		const startTime = Date.now();
 		const childLogger = logger.child({
 			serviceName: this.serviceName,
 			companyUrl: emailInfo.companyUrl,
@@ -106,12 +107,18 @@ export class EmailGenerator {
 			)[0];
 
 			childLogger.info(
-				{ confidence: topCandidate.confidence },
+				{
+					confidence: topCandidate.confidence,
+					durationMs: Date.now() - startTime,
+				},
 				"Inference completed",
 			);
 			return topCandidate;
 		} catch (err: unknown) {
-			childLogger.error({ err }, "Inference Failed");
+			childLogger.error(
+				{ err, durationMs: Date.now() - startTime },
+				"Inference failed",
+			);
 			return {
 				success: false,
 				reason: `${err instanceof Error ? err.message : "An unknown error has occurred"}`,
@@ -240,7 +247,7 @@ export class EmailGenerator {
 				.map((res) => res.reason);
 
 			for (const err of errorReasons)
-				childLogger.warn({ err }, "SMTP Verification Failed");
+				childLogger.warn({ err }, "SMTP verification failed");
 		}
 
 		return successfulRequests.map((res) => res.value);

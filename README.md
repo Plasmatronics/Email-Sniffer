@@ -22,12 +22,16 @@ npm install
 ```
 
 Create a .env file and transfer the mocked variables from the example .env to your real .env files, and swapping the mocked variables for real ones:
-| Variable             | Description                                          |
-| -------------------- | ---------------------------------------------------- |
-| `FROM_MAILBOX`       | Mailbox used as the sender during SMTP verification. |
-| `SERPER_API_KEY`     | API key used for web searches through Serper.        |
-| `SMTP_EHLO_HOSTNAME` | Hostname sent in the SMTP `EHLO` command.            |
-| `SERVER_PORT`        | Port on which the HTTP server listens.               |
+| Variable               | Description                                          |
+| ---------------------- | ---------------------------------------------------- |
+| `FROM_MAILBOX`         | Mailbox used as the sender during SMTP verification. |
+| `SERPER_API_KEY`       | API key used for web searches through Serper.        |
+| `SMTP_EHLO_HOSTNAME`   | Hostname sent in the SMTP `EHLO` command.            |
+| `SERVER_PORT`          | Port on which the HTTP server listens.               |
+| `SMOKE_TEST_FETCH_URL` | Url for smoke test purposes during fetching.         |
+| `LOG_LEVEL`            | Minimum log level needed to be met to produce log    |
+| `NODE_ENV`             | Environment setting                                  |
+
 
 ## Run the server
 Start the service:
@@ -73,12 +77,21 @@ Checks integration + internet connectivity.
 The endpoint returns `200` when all vital integrations are healthy and `503` otherwise.
 
 ## Project structure
+- `server.ts` — Express server setup and dependency wiring
+- `src/application` — Application-level orchestration, including email generation
 
-- `server.ts` - Express server and dependency wiring
-- `src/services` - Email discovery, crawling, extraction, scoring, and SMTP verification (any internal service)
-- `src/integrations` - External service integrations
-- `src/shared` - Shared email-pattern definitions and generators
-- `src/utils` - URL and email-related helpers
+- `src/crawling` — Website fetching, crawling, and HTML/PDF parsing
+- `src/domain` — Domain confidence scoring
+- `src/email-inference` — Email-pattern inference and confidence aggregation
+- `src/evidence` — Evidence collection from company websites and PDF search
+- `src/infrastructure` — Internal Infrastructure, including logging
+- `src/integrations` — External service integrations, such as Serper
+- `src/processing` — Text chunking, document clamping, and email extraction
+- `src/search` — Web search functionality
+- `src/shared` — Shared email-pattern definitions
+- `src/types` — Shared TypeScript types
+- `src/utils` — Environment loading and reusable URL/email utilities
+- `src/verification` — SMTP and MX-record verification
 
 ## License
 

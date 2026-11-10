@@ -3,10 +3,13 @@ import { logger } from "../../infrastructure";
 export const DEFAULT_CLAMP_LENGTH = 1_000_000;
 
 export class DocumentClamper {
+	private readonly serviceName = "DocumentClamper";
+
 	clamp(parsable: string, clampLength: number = DEFAULT_CLAMP_LENGTH): string {
+		const childLogger = logger.child({ serviceName: this.serviceName });
 		if (parsable.length > clampLength) {
 			const delta = parsable.length - clampLength;
-			logger.warn(
+			childLogger.warn(
 				{ truncatedCharacters: delta, maxContentLength: clampLength },
 				"Document content was truncated",
 			);

@@ -21,6 +21,8 @@ const MIN_SCORE = 0;
 const DOMAIN_CONFIDENCE_EXPONENT = 2;
 
 export class InferredEmailConfidenceScorer {
+	private readonly serviceName = "InferredEmailConfidenceScorer";
+
 	constructor(private config: InferredEmailConfidenceScorerConfig) {
 		const normalizedWeights = this.normalizeWeights(config.weights);
 		const normalizedPassingScore = this.clampScore(config.passingScore);
@@ -35,7 +37,10 @@ export class InferredEmailConfidenceScorer {
 		results: EmailInferenceCandidate[],
 		topPatterns: Map<KnownEmailPattern, number>,
 	): EmailInferenceResults[] {
-		const childLogger = logger.child({ results: results.length });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			results: results.length,
+		});
 		childLogger.info("Scoring Inferred Email Candidates");
 
 		const res = results.map((res) => {

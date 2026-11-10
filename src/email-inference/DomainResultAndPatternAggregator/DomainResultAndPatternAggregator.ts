@@ -19,12 +19,17 @@ export interface EmailEvidenceWithCount extends EmailEvidence {
 }
 
 export class DomainResultAndPatternAggregator {
+	private readonly serviceName = "DomainResultAndPatternAggregator";
+
 	constructor(private mxRecordRetriever: MXRecordRetriever) {}
 
 	aggregateResults(
 		results: DomainAndPatternAggregation[],
 	): DomainAndPatternAggregation {
-		const childLogger = logger.child({ results: results.length });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			results: results.length,
+		});
 		childLogger.debug("Aggregating results");
 
 		const patternFreq = new Map<KnownEmailPattern, number>();
@@ -52,7 +57,10 @@ export class DomainResultAndPatternAggregator {
 	async aggregateEvidence(
 		evidence: EmailEvidence[],
 	): Promise<DomainAndPatternAggregation> {
-		const childLogger = logger.child({ evidence: evidence.length });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			evidence: evidence.length,
+		});
 		childLogger.debug("Aggregating evidence");
 
 		const domainMap = this.buildPreMxLookupMap(evidence);
@@ -77,6 +85,7 @@ export class DomainResultAndPatternAggregator {
 		results: DomainResults[],
 	): Promise<DomainAndPatternAggregation> {
 		const childLogger = logger.child({
+			serviceName: this.serviceName,
 			evidence: evidence.length,
 			results: results.length,
 		});

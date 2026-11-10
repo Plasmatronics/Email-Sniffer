@@ -16,6 +16,8 @@ import {
 } from "./EmailGenerator.types";
 
 export class EmailGenerator {
+	private readonly serviceName = "EmailGenerator";
+
 	constructor(
 		private readonly dependencies: EmailGeneratorDependencies,
 		private readonly options: EmailGeneratorOptions,
@@ -25,6 +27,7 @@ export class EmailGenerator {
 		emailInfo: SearchInformation,
 	): Promise<EmailInferenceResults> {
 		const childLogger = logger.child({
+			serviceName: this.serviceName,
 			companyUrl: emailInfo.companyUrl,
 		});
 

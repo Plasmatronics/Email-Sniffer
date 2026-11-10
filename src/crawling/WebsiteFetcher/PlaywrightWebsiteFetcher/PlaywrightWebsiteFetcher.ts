@@ -9,6 +9,8 @@ import { Browser, LaunchOptions } from "playwright";
 import { logger } from "../../../infrastructure";
 
 export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
+	private readonly serviceName = "PlaywrightWebsiteFetcher";
+
 	private constructor(private readonly browser: Browser) {}
 
 	static async createFetcher(
@@ -32,7 +34,7 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 
 	async fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult> {
 		const start = Date.now();
-		const childLogger = logger.child({ url });
+		const childLogger = logger.child({ serviceName: this.serviceName, url });
 		childLogger.debug("Fetching website");
 
 		const page = await this.browser.newPage();

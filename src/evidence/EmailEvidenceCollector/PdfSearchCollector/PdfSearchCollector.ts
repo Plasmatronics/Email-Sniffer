@@ -27,13 +27,19 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 	PdfCollectionInput,
 	PdfCollectionDependencies
 > {
+	private readonly serviceName = "PdfSearchCollector";
+
 	constructor(dependencies: PdfCollectionDependencies) {
 		super(dependencies);
 	}
 
 	async collect(input: PdfCollectionInput): Promise<EmailEvidence[]> {
 		const { topChoiceDomain, companyUrl } = input;
-		const childLogger = logger.child({ companyUrl, topChoiceDomain });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			companyUrl,
+			topChoiceDomain,
+		});
 		childLogger.debug("Collecting PDF evidence");
 
 		const normalizedCompanyUrl = extractDomain(companyUrl);

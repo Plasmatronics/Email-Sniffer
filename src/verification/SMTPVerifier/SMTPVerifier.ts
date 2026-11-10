@@ -16,6 +16,8 @@ const GLOBAL_TIMEOUT = 45_000;
 const responseLineRegex = /^(\d{3})([- ])(.*)$/;
 
 export class SMTPVerifier {
+	private readonly serviceName = "SMTPVerifier";
+
 	private readonly socketErrors = new WeakMap<Socket, Error>();
 
 	constructor(
@@ -36,7 +38,7 @@ export class SMTPVerifier {
 			const errMessage =
 				"Malformed email input disallowed SMTP verification to complete";
 
-			logger.warn(errMessage);
+			logger.warn({ serviceName: this.serviceName }, errMessage);
 			return {
 				status: "error",
 				message: errMessage,
@@ -44,6 +46,7 @@ export class SMTPVerifier {
 		}
 
 		const childLogger = logger.child({
+			serviceName: this.serviceName,
 			domain,
 			mxRecords: mxRecords.length,
 		});

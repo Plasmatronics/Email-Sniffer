@@ -27,6 +27,8 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 	CompanyWebsiteCollectionDependencies,
 	CompanyWebsiteCollectionConfig
 > {
+	private readonly serviceName = "CompanyWebsiteCollector";
+
 	constructor(
 		dependencies: CompanyWebsiteCollectionDependencies,
 		config: CompanyWebsiteCollectionConfig,
@@ -38,7 +40,10 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 		input: CompanyWebsiteCollectionInput,
 	): Promise<EmailEvidence[]> {
 		const { companyUrl } = input;
-		const childLogger = logger.child({ companyUrl });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			companyUrl,
+		});
 		childLogger.debug("Collecting website evidence");
 
 		const normalizedCompanyUrl = extractDomain(companyUrl);

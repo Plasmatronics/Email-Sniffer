@@ -9,13 +9,18 @@ import { TextChunker } from "../../processing/TextChunker";
 import { logger } from "../../infrastructure";
 
 export class EmailPatternInferrer {
+	private readonly serviceName = "EmailPatternInferrer";
+
 	constructor(private chunker: TextChunker) {}
 
 	inferEmailPatterns(
 		extractedEmails: ExtractedEmail[],
 		document: string,
 	): PatternInference[] {
-		const childLogger = logger.child({ emails: extractedEmails.length });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			emails: extractedEmails.length,
+		});
 		childLogger.debug("Attempting batch email pattern inference");
 		const chunkedDocument = this.chunker.chunk(document);
 		const inferredEmailsAndPatterns: PatternInference[] = [];

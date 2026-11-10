@@ -4,11 +4,14 @@ import { ParsedResults, ParserStrategy } from "../parserStrategy.types";
 import { logger } from "../../../infrastructure";
 
 export class HTMLParserStrategy implements ParserStrategy {
+	private readonly serviceName = "HTMLParserStrategy";
+
 	supports(contentType: string): boolean {
 		return contentType.split(";")[0].trim().toLowerCase() === "text/html";
 	}
 
 	async parse(content: Buffer): Promise<ParsedResults> {
+		const childLogger = logger.child({ serviceName: this.serviceName });
 		const $ = cheerio.loadBuffer(content);
 
 		$("script, style, noscript, template, svg").remove();
@@ -21,7 +24,7 @@ export class HTMLParserStrategy implements ParserStrategy {
 				const recipients = decodeURIComponent(new URL(href).pathname);
 				$(element).append(new Text(` ${recipients}`));
 			} catch (err: unknown) {
-				logger.warn({ err, href }, "Encountered malformed mailto link");
+				childLogger.warn({ err, href }, "Encountered malformed mailto link");
 			}
 		});
 

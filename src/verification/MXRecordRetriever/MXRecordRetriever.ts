@@ -15,6 +15,8 @@ const NO_MX_RECORD_DNS_ERROR_CODES = new Set([
 ]);
 
 export class MXRecordRetriever {
+	private readonly serviceName = "MXRecordRetriever";
+
 	private numRecordsToReturn: number;
 
 	constructor(maxRecords: number = NUM_RECORDS_DEFAULT) {
@@ -29,7 +31,10 @@ export class MXRecordRetriever {
 	}
 
 	async findMXRecords(domain: string): Promise<string[]> {
-		const childLogger = logger.child({ domain });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			domain,
+		});
 		childLogger.debug("Starting MX lookup");
 
 		const destinationDomain = extractDomain(domain);

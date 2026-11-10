@@ -24,6 +24,8 @@ export interface WebsiteEmailCrawlerConfig extends WebsiteFetcherConfig {
 export type CrawlResult = Record<string, PatternInference[]>;
 
 export class WebsiteEmailCrawler {
+	private readonly serviceName = "WebsiteEmailCrawler";
+
 	constructor(
 		private readonly parserStrategies: ParserStrategy[],
 		private readonly emailExtractor: EmailExtractor,
@@ -57,7 +59,10 @@ export class WebsiteEmailCrawler {
 		url: string,
 		config: WebsiteEmailCrawlerConfig,
 	): Promise<CrawlResult> {
-		const childLogger = logger.child({ crawlUrl: url });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			crawlUrl: url,
+		});
 
 		const { maxPages, ...fetcherConfig } = this.normalizeConfig(config);
 

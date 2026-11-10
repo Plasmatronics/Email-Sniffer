@@ -5,6 +5,8 @@ import { WebSearchResult } from "../../types";
 const QUERY_ADDONS = ["filetype:pdf", "contact"];
 
 export class WebSearcher {
+	private readonly serviceName = "WebSearcher";
+
 	constructor(private readonly webSearchClient: WebSearchClient) {}
 
 	private createSearchQueries(baseQuery: string): string[] {
@@ -12,7 +14,10 @@ export class WebSearcher {
 	}
 
 	public async fetchResults(baseQuery: string): Promise<WebSearchResult[]> {
-		const childLogger = logger.child({ baseQuery });
+		const childLogger = logger.child({
+			serviceName: this.serviceName,
+			baseQuery,
+		});
 
 		try {
 			childLogger.debug("Fetching search results");

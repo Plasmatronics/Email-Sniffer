@@ -20,7 +20,7 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 			chromium.use(StealthPlugin());
 			const browser = await chromium.launch({
 				...options,
-				headless: true,
+				headless: process.env.NODE_ENV === "production" ? true : false,
 			});
 
 			return new PlaywrightWebsiteFetcher(browser);

@@ -13,10 +13,10 @@
 	"license": "ISC",
 	"author": "Nicholas Bruno",
 	"type": "module",
-	"main": "server.ts",
+	"main": "bootstrap.ts",
 	"scripts": {
-		"start": "tsx server.ts",
-		"dev": "tsx watch server.ts",
+		"start": "tsx bootstrap.ts",
+		"dev": "tsx watch bootstrap.ts",
 		"test": "vitest",
 		"test:unit": "vitest run --exclude '**/*.integration.test.ts' --exclude '**/*.smoke.test.ts' --passWithNoTests",
 		"test:integration": "vitest run --config vitest.integration.config.ts  --passWithNoTests",

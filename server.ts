@@ -1,3 +1,4 @@
+import { loadEnv } from "./src/config";
 import express from "express";
 import z from "zod";
 import {
@@ -21,7 +22,6 @@ import {
 	InferredEmailConfidenceScorer,
 	PlaywrightWebsiteFetcher,
 } from "./src";
-import { loadEnv } from "./src/utils";
 
 const {
 	fromEmail,

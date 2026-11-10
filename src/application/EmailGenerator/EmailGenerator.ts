@@ -1,3 +1,5 @@
+import { Logger } from "pino";
+import { logger } from "../../infrastructure";
 import {
 	EmailPattern,
 	generateEmailLocalPartMap,
@@ -22,14 +24,22 @@ export class EmailGenerator {
 	async inferEmail(
 		emailInfo: SearchInformation,
 	): Promise<EmailInferenceResults> {
+		const childLogger = logger.child({
+			companyUrl: emailInfo.companyUrl,
+		});
+
 		try {
+			childLogger.info("Starting inference");
+
 			const normalizedCompanyDomain = extractDomain(emailInfo.companyUrl);
 			const normalizedCompanyUrl = normalizeCompanyURL(emailInfo.companyUrl);
 			if (!normalizedCompanyDomain || !normalizedCompanyUrl)
 				throw new Error("companyUrl is not syntactically correct.");
 
-			const companyUrlDomainResults =
-				await this.getDerivedDomainInformation(normalizedCompanyUrl);
+			const companyUrlDomainResults = await this.getDerivedDomainInformation(
+				normalizedCompanyUrl,
+				childLogger,
+			);
 			const companyWebsiteEmailEvidence =
 				await this.dependencies.companyWebsiteEmailEvidenceCollector.collect({
 					companyUrl: normalizedCompanyUrl,
@@ -76,6 +86,7 @@ export class EmailGenerator {
 				topPatterns,
 				emailInfo.firstName,
 				emailInfo.lastName,
+				childLogger,
 			);
 
 			const scoredCandidates: EmailInferenceResults[] =
@@ -87,9 +98,17 @@ export class EmailGenerator {
 			const successCandidates = scoredCandidates.filter((res) => res.success);
 			if (!successCandidates.length)
 				throw new Error("No suitable candidates found");
+			const topCandidate = successCandidates.sort(
+				(a, b) => b.confidence - a.confidence,
+			)[0];
 
-			return successCandidates.sort((a, b) => b.confidence - a.confidence)[0];
+			childLogger.info(
+				{ confidence: topCandidate.confidence },
+				"Inference completed",
+			);
+			return topCandidate;
 		} catch (err: unknown) {
+			childLogger.error({ err }, "Inference Failed");
 			return {
 				success: false,
 				reason: `${err instanceof Error ? err.message : "An unknown error has occurred"}`,
@@ -99,6 +118,7 @@ export class EmailGenerator {
 
 	private async getDerivedDomainInformation(
 		companyUrl: string,
+		childLogger: Logger,
 	): Promise<DomainResults> {
 		const domain = extractDomain(companyUrl);
 		let mxRecords: string[] = [];
@@ -123,11 +143,7 @@ export class EmailGenerator {
 				).confidence,
 			} as DomainResults;
 		} catch (err: unknown) {
-			console.error(
-				`Failed to retrieve MX records for domain ${domain}: ${
-					err instanceof Error ? err.message : "unknown error"
-				}`,
-			);
+			childLogger.error({ err }, "Failed to retrieve domain MX records");
 
 			return {
 				...domainResultsOverlap,
@@ -180,6 +196,7 @@ export class EmailGenerator {
 		topPatterns: EmailPattern[],
 		firstName: string,
 		lastName: string,
+		childLogger: Logger,
 	): Promise<EmailInferenceCandidate[]> {
 		if (!topDomains.length) return [];
 
@@ -219,11 +236,8 @@ export class EmailGenerator {
 				.filter((res) => res.status === "rejected")
 				.map((res) => res.reason);
 
-			console.warn(
-				`No SMTP promises were fulfilled. Reasons: ${
-					errorReasons.length ? errorReasons.join("\n") : "N/A"
-				}`,
-			);
+			for (const err of errorReasons)
+				childLogger.warn({ err }, "SMTP Verification Failed");
 		}
 
 		return successfulRequests.map((res) => res.value);

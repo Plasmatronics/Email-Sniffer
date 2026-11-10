@@ -16,6 +16,7 @@ import {
 	WebsiteEmailCrawler,
 	type WebsiteEmailCrawlerConfig,
 } from "./WebsiteEmailCrawler";
+import { logger } from "../../infrastructure";
 
 const { fetch } = vi.hoisted(() => ({ fetch: vi.fn() }));
 
@@ -201,19 +202,25 @@ describe("WebsiteEmailCrawler", () => {
 
 	test("continues after a parser failure", async () => {
 		parse.mockRejectedValue(new Error("Invalid content"));
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const crawler = createCrawler();
 
 		await expect(crawler.crawl(SEED_URL, crawlConfig(1))).resolves.toEqual({});
-		expect(console.warn).toHaveBeenCalledWith("Invalid content");
+		expect(warn).toHaveBeenCalledWith(
+			{ err: expect.any(Error), pageUrl: SEED_URL },
+			"Error during content parsing",
+		);
 	});
 
 	test("continues after a fetch failure", async () => {
 		fetch.mockRejectedValue(new Error("Request failed"));
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const crawler = createCrawler();
 
 		await expect(crawler.crawl(SEED_URL, crawlConfig(1))).resolves.toEqual({});
-		expect(console.warn).toHaveBeenCalledWith(
-			`Failed to fetch ${SEED_URL}: Request failed`,
+		expect(warn).toHaveBeenCalledWith(
+			{ err: expect.any(Error), pageUrl: SEED_URL },
+			"Failed to fetch page",
 		);
 	});
 

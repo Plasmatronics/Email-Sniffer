@@ -1,5 +1,8 @@
 import net, { type Socket } from "node:net";
 import z from "zod";
+import type { Logger } from "pino";
+import { logger } from "../../infrastructure";
+import { extractDomain } from "../../utils";
 
 export type SMTPVerificationResult = {
 	status: "accepted" | "retryable" | "rejected" | "error" | "unknown";
@@ -28,10 +31,28 @@ export class SMTPVerifier {
 		email: string,
 		mxRecords: string[],
 	): Promise<SMTPVerificationResult> {
+		const domain = extractDomain(email);
+		if (!domain) {
+			const errMessage =
+				"Malformed email input disallowed SMTP verification to complete";
+
+			logger.warn(errMessage);
+			return {
+				status: "error",
+				message: errMessage,
+			};
+		}
+
+		const childLogger = logger.child({
+			domain,
+			mxRecords: mxRecords.length,
+		});
+		childLogger.debug("Starting SMTP verification");
+
 		let lastFailure: SMTPVerificationResult | undefined;
 
 		for (const record of mxRecords) {
-			const result = await this.verifySingleMX(email, record);
+			const result = await this.verifySingleMX(email, record, childLogger);
 
 			if (
 				result.status === "accepted" ||
@@ -54,6 +75,7 @@ export class SMTPVerifier {
 	private async verifySingleMX(
 		email: string,
 		mxDestinationHost: string,
+		childLogger: Logger,
 	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
 		const globalTimer = setTimeout(() => {
@@ -106,7 +128,7 @@ export class SMTPVerifier {
 			try {
 				if (socket) await this.closeConnection(socket);
 			} catch (err: unknown) {
-				console.warn("An issue occurred during socket closure");
+				childLogger.warn({ err }, "Failed to close SMTP socket");
 			} finally {
 				clearTimeout(globalTimer);
 			}

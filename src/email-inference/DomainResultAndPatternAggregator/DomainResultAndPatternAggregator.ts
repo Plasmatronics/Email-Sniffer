@@ -6,6 +6,8 @@ import {
 	DomainResults,
 } from "../../application/EmailGenerator";
 import { MXRecordRetriever } from "../../verification/MXRecordRetriever";
+import { logger } from "../../infrastructure";
+import type { Logger } from "pino";
 
 export interface DomainAndPatternAggregation {
 	patternFreq: Map<KnownEmailPattern, number>;
@@ -22,6 +24,9 @@ export class DomainResultAndPatternAggregator {
 	aggregateResults(
 		results: DomainAndPatternAggregation[],
 	): DomainAndPatternAggregation {
+		const childLogger = logger.child({ results: results.length });
+		childLogger.debug("Aggregating results");
+
 		const patternFreq = new Map<KnownEmailPattern, number>();
 		const domainResultsMap = this.buildDomainResultsMap(
 			results.flatMap((res) => res.domainResults),
@@ -32,20 +37,35 @@ export class DomainResultAndPatternAggregator {
 				patternFreq.set(pattern, (patternFreq.get(pattern) ?? 0) + count);
 			}
 		}
+		const domainResults = [...Object.values(domainResultsMap)];
 
+		childLogger.debug(
+			{ patterns: patternFreq.size, domainResults: domainResults.length },
+			"Result Aggregation Completed",
+		);
 		return {
 			patternFreq,
-			domainResults: [...Object.values(domainResultsMap)],
+			domainResults,
 		};
 	}
 
 	async aggregateEvidence(
 		evidence: EmailEvidence[],
 	): Promise<DomainAndPatternAggregation> {
+		const childLogger = logger.child({ evidence: evidence.length });
+		childLogger.debug("Aggregating evidence");
+
 		const domainMap = this.buildPreMxLookupMap(evidence);
 		const patternFreq = this.buildPatternFreq(evidence);
+		const domainResults = await this.enrichDomainsWithMx(
+			domainMap,
+			childLogger,
+		);
 
-		const domainResults = await this.enrichDomainsWithMx(domainMap);
+		childLogger.debug(
+			{ patterns: patternFreq.size, domainResults: domainResults.length },
+			"Evidence Aggregation Completed",
+		);
 		return {
 			domainResults,
 			patternFreq,
@@ -56,7 +76,12 @@ export class DomainResultAndPatternAggregator {
 		evidence: EmailEvidence[],
 		results: DomainResults[],
 	): Promise<DomainAndPatternAggregation> {
-		//1). create results map
+		const childLogger = logger.child({
+			evidence: evidence.length,
+			results: results.length,
+		});
+		childLogger.debug("Aggregating evidence and results");
+
 		const domainResultsMap = this.buildDomainResultsMap(results);
 		const patternFreq = this.buildPatternFreq(evidence);
 
@@ -77,16 +102,31 @@ export class DomainResultAndPatternAggregator {
 			}
 		}
 
-		const enrichedDomains = await this.enrichDomainsWithMx(domainMap);
+		const enrichedDomains = await this.enrichDomainsWithMx(
+			domainMap,
+			childLogger,
+		);
+		const domainResults = [
+			...enrichedDomains,
+			...Object.values(domainResultsMap),
+		];
 
+		childLogger.debug(
+			{
+				patterns: patternFreq.size,
+				domainResults: domainResults.length,
+			},
+			"Result And Evidence Aggregation Completed",
+		);
 		return {
-			domainResults: [...enrichedDomains, ...Object.values(domainResultsMap)],
+			domainResults,
 			patternFreq,
 		};
 	}
 
 	private async enrichDomainsWithMx(
 		domainMap: Record<string, EmailEvidenceWithCount>,
+		childLogger: Logger,
 	): Promise<DomainResults[]> {
 		const domainResults = await Promise.allSettled(
 			Object.entries(domainMap).map(
@@ -107,7 +147,10 @@ export class DomainResultAndPatternAggregator {
 		const errors = domainResults
 			.filter((res) => res.status === "rejected")
 			.map((res) => res.reason);
-		if (errors.length) console.error(errors);
+		if (errors.length) {
+			for (const err of errors)
+				childLogger.warn({ err }, "Failed to enrich domain with MX records");
+		}
 
 		return domainResults
 			.filter((res) => res.status === "fulfilled")

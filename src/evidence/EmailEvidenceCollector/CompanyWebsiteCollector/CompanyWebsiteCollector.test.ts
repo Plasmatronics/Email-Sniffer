@@ -14,6 +14,7 @@ import {
 	type WebsiteFetcher,
 } from "../../../crawling/WebsiteFetcher";
 import { CompanyWebsiteCollector } from "./CompanyWebsiteCollector";
+import { logger } from "../../../infrastructure";
 
 const COMPANY_URL = "https://example.com";
 const SOURCE_URL = "https://example.com/contact";
@@ -114,14 +115,14 @@ describe("CompanyWebsiteCollector", () => {
 
 	test("returns no evidence and reports a malformed company URL", async () => {
 		const { collector, crawl, validateDomain } = createCollector();
-		const error = vi.spyOn(console, "error").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 
 		await expect(
 			collector.collect({ companyUrl: "not a company url" }),
 		).resolves.toEqual([]);
 
-		expect(error).toHaveBeenCalledWith(
-			'Unable to collect any website search results for company "not a company url" due to malformed input',
+		expect(warn).toHaveBeenCalledWith(
+			"Unable to collect evidence because the company URL is malformed",
 		);
 		expect(crawl).not.toHaveBeenCalled();
 		expect(validateDomain).not.toHaveBeenCalled();

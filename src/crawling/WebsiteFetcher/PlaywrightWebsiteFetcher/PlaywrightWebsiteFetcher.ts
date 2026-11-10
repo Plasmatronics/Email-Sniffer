@@ -6,6 +6,7 @@ import {
 	WebsiteFetcherConfig,
 } from "../websiteFetcher.types";
 import { Browser, LaunchOptions } from "playwright";
+import { logger } from "../../../infrastructure";
 
 export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 	private constructor(private readonly browser: Browser) {}
@@ -30,6 +31,10 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 	}
 
 	async fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult> {
+		const start = Date.now();
+		const childLogger = logger.child({ url });
+		childLogger.debug("Fetching website");
+
 		const page = await this.browser.newPage();
 
 		try {
@@ -46,6 +51,15 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 			if (buffer.byteLength > config.maxContentLength) {
 				throw new Error("Content exceeds maximum length");
 			}
+
+			childLogger.debug(
+				{
+					statusCode: response.status(),
+					contentLength: buffer.byteLength,
+					durationMs: Math.round(Date.now() - start),
+				},
+				"Website fetched successfully",
+			);
 
 			return {
 				data: buffer,

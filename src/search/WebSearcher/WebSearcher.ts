@@ -1,3 +1,4 @@
+import { logger } from "../../infrastructure";
 import { WebSearchClient } from "../../integrations";
 import { WebSearchResult } from "../../types";
 
@@ -11,7 +12,11 @@ export class WebSearcher {
 	}
 
 	public async fetchResults(baseQuery: string): Promise<WebSearchResult[]> {
+		const childLogger = logger.child({ baseQuery });
+
 		try {
+			childLogger.debug("Fetching search results");
+
 			const queries = this.createSearchQueries(baseQuery);
 			const searchResults = await Promise.allSettled(
 				queries.map((query) => this.webSearchClient.search(query)),
@@ -24,16 +29,13 @@ export class WebSearcher {
 				throw new Error("Could not retrieve any search results");
 
 			for (const result of searchResults) {
-				if (result.status === "rejected") console.warn(result.reason);
+				if (result.status === "rejected")
+					childLogger.warn({ err: result.reason }, "Search request failed");
 			}
 
 			return successfulSearchResults;
 		} catch (err: unknown) {
-			console.error(
-				`An error occurred while fetching results for the query ${baseQuery}: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
-				{ cause: err },
-			);
-
+			childLogger.error({ err }, "Failed to fetch results");
 			return [];
 		}
 	}

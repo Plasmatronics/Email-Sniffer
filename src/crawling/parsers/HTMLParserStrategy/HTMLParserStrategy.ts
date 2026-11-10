@@ -1,6 +1,7 @@
 import * as cheerio from "cheerio";
 import { Text } from "domhandler";
 import { ParsedResults, ParserStrategy } from "../parserStrategy.types";
+import { logger } from "../../../infrastructure";
 
 export class HTMLParserStrategy implements ParserStrategy {
 	supports(contentType: string): boolean {
@@ -19,8 +20,8 @@ export class HTMLParserStrategy implements ParserStrategy {
 			try {
 				const recipients = decodeURIComponent(new URL(href).pathname);
 				$(element).append(new Text(` ${recipients}`));
-			} catch {
-				console.warn(`Encountered malformed mailto: ${href}`);
+			} catch (err: unknown) {
+				logger.warn({ err, href }, "Encountered malformed mailto link");
 			}
 		});
 

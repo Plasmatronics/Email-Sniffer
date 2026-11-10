@@ -3,6 +3,7 @@ import {
 	EmailInferenceCandidate,
 	EmailInferenceResults,
 } from "../../application/EmailGenerator";
+import { logger } from "../../infrastructure";
 
 export interface EmailScorerWeights {
 	domainWeight: number;
@@ -34,7 +35,10 @@ export class InferredEmailConfidenceScorer {
 		results: EmailInferenceCandidate[],
 		topPatterns: Map<KnownEmailPattern, number>,
 	): EmailInferenceResults[] {
-		return results.map((res) => {
+		const childLogger = logger.child({ results: results.length });
+		childLogger.info("Scoring Inferred Email Candidates");
+
+		const res = results.map((res) => {
 			const domainContribution =
 				this.calculateDomainContribution(res.domainConfidence) *
 				this.config.weights.domainWeight;
@@ -70,6 +74,10 @@ export class InferredEmailConfidenceScorer {
 				};
 			}
 		});
+
+		const numPassing = res.filter((cur) => cur.success).length;
+		childLogger.info({ numPassing }, "Candidate scoring completed");
+		return res as EmailInferenceResults[];
 	}
 
 	private calculateDomainContribution(domainConfidence: number): number {

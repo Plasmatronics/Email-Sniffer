@@ -6,6 +6,7 @@ import {
 } from "../../shared";
 import { ExtractedEmail } from "../../processing/EmailExtractor";
 import { TextChunker } from "../../processing/TextChunker";
+import { logger } from "../../infrastructure";
 
 export class EmailPatternInferrer {
 	constructor(private chunker: TextChunker) {}
@@ -14,6 +15,8 @@ export class EmailPatternInferrer {
 		extractedEmails: ExtractedEmail[],
 		document: string,
 	): PatternInference[] {
+		const childLogger = logger.child({ emails: extractedEmails.length });
+		childLogger.debug("Attempting batch email pattern inference");
 		const chunkedDocument = this.chunker.chunk(document);
 		const inferredEmailsAndPatterns: PatternInference[] = [];
 
@@ -23,6 +26,10 @@ export class EmailPatternInferrer {
 			inferredEmailsAndPatterns.push(inferrence);
 		}
 
+		childLogger.debug(
+			{ inferences: inferredEmailsAndPatterns.length },
+			"Batch email pattern inference completed",
+		);
 		return inferredEmailsAndPatterns;
 	}
 

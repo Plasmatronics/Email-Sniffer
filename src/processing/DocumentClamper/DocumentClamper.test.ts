@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, test, vi } from "vitest";
 import { DEFAULT_CLAMP_LENGTH, DocumentClamper } from "./DocumentClamper";
+import { logger } from "../../infrastructure";
 
 describe("DocumentClamper", () => {
 	afterEach(() => {
@@ -31,7 +32,7 @@ describe("DocumentClamper", () => {
 	});
 
 	test("truncates a document longer than the clamp length", () => {
-		vi.spyOn(console, "warn").mockImplementation(() => {});
+		vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const clamper = new DocumentClamper();
 
 		const result = clamper.clamp("123456789", 5);
@@ -40,7 +41,7 @@ describe("DocumentClamper", () => {
 	});
 
 	test("uses the default clamp length when no length is provided", () => {
-		vi.spyOn(console, "warn").mockImplementation(() => {});
+		vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const clamper = new DocumentClamper();
 		const document = "a".repeat(DEFAULT_CLAMP_LENGTH + 1);
 
@@ -50,7 +51,7 @@ describe("DocumentClamper", () => {
 	});
 
 	test("returns an empty document when the clamp length is zero", () => {
-		vi.spyOn(console, "warn").mockImplementation(() => {});
+		vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const clamper = new DocumentClamper();
 
 		const result = clamper.clamp("document", 0);
@@ -59,18 +60,19 @@ describe("DocumentClamper", () => {
 	});
 
 	test("warns with the omitted and configured character counts when truncating", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const clamper = new DocumentClamper();
 
 		clamper.clamp("123456789", 5);
 
 		expect(warn).toHaveBeenCalledWith(
-			"Did not process the last 4 of this text because it surpassed the maxContentLength of 5",
+			{ truncatedCharacters: 4, maxContentLength: 5 },
+			"Document content was truncated",
 		);
 	});
 
 	test("does not warn when the document is at the clamp length", () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+		const warn = vi.spyOn(logger, "warn").mockImplementation(() => logger);
 		const clamper = new DocumentClamper();
 
 		clamper.clamp("12345", 5);

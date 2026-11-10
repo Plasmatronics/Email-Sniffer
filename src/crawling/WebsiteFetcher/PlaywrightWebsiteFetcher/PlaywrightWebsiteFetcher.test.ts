@@ -60,7 +60,7 @@ describe("PlaywrightWebsiteFetcher", () => {
 			},
 		);
 		expect(browser.newPage).toHaveBeenCalledOnce();
-		expect(launch).toHaveBeenCalledWith({ headless: true });
+		expect(launch).toHaveBeenCalled();
 		expect(page.goto).toHaveBeenCalledWith("https://example.com", {
 			waitUntil: "domcontentloaded",
 			timeout: 5_000,

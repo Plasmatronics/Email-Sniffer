@@ -11,6 +11,7 @@ import {
 } from "../EmailEvidenceCollector";
 import { DEFAULT_WEBSITE_FETCHER_CONFIG } from "../../../crawling";
 import { logger } from "../../../infrastructure";
+import { getDomainWithoutSuffix } from "tldts";
 
 export interface PdfCollectionInput {
 	companyUrl: string;
@@ -44,7 +45,9 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 		childLogger.debug("Collecting PDF evidence");
 
 		const normalizedCompanyUrl = extractDomain(companyUrl);
-		const normalizedTopChoiceDomain = extractDomain(topChoiceDomain ?? "");
+		const normalizedTopChoiceDomain = getDomainWithoutSuffix(
+			topChoiceDomain ?? "",
+		);
 
 		if (!normalizedCompanyUrl || !normalizedTopChoiceDomain) {
 			if (topChoiceDomain && !normalizedTopChoiceDomain)

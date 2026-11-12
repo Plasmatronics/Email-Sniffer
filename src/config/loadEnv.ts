@@ -1,4 +1,6 @@
-import { configDotenv } from "dotenv";
+/*
+Centrlized Place to load env variables and handle errors; dotenv already injected at bootstrapped root.
+*/
 
 export interface EnvConfig {
 	fromEmail: string;
@@ -10,9 +12,7 @@ export interface EnvConfig {
 	nodeEnv: string;
 }
 
-export function loadEnv(path = "./.env"): Readonly<EnvConfig> {
-	configDotenv({ path });
-
+export function loadEnv(): Readonly<EnvConfig> {
 	const {
 		FROM_MAILBOX: fromEmail,
 		SMTP_EHLO_HOSTNAME: ehloHostName,

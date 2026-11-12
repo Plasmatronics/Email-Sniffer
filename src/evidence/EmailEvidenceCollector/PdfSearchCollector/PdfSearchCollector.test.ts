@@ -17,7 +17,6 @@ import {
 import type { WebSearchClient } from "../../../integrations";
 import type { WebSearchResult } from "../../../types";
 import { PdfSearchCollector } from "./PdfSearchCollector";
-import { extractDomain } from "../../../utils";
 import { logger } from "../../../infrastructure";
 
 const COMPANY_URL = "https://example.com";
@@ -103,7 +102,7 @@ describe("PdfSearchCollector", () => {
 			},
 		]);
 
-		expect(fetchResults).toHaveBeenCalledWith("@example.com");
+		expect(fetchResults).toHaveBeenCalledWith("@example");
 		expect(crawl).toHaveBeenCalledWith(SEARCH_URL, {
 			maxPages: 1,
 			...DEFAULT_WEBSITE_FETCHER_CONFIG,
@@ -111,7 +110,7 @@ describe("PdfSearchCollector", () => {
 		expect(validateDomain).toHaveBeenCalledWith(
 			SEARCH_URL,
 			"example.com",
-			extractDomain(COMPANY_URL),
+			"example.com",
 		);
 	});
 

@@ -32,6 +32,17 @@ export class SerperClient implements WebSearchClient, SnifferIntegration {
 			const parsedApiRes = SerperResponseSchema.parse(response.data);
 			return parsedApiRes.organic;
 		} catch (err: unknown) {
+			if (axios.isAxiosError(err)) {
+				const details = err.response?.data
+					? JSON.stringify(err.response.data)
+					: err.message;
+
+				throw new Error(
+					`An error has occurred during web search: Serper search failed with status ${err.response?.status ?? "N/A"}: ${details}`,
+					{ cause: err },
+				);
+			}
+
 			throw new Error(
 				`An error has occurred during web search: ${err instanceof Error ? err.message : "An unknown error has occurred"}`,
 				{ cause: err },

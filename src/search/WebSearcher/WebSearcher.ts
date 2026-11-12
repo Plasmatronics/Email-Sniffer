@@ -31,8 +31,26 @@ export class WebSearcher {
 			const successfulSearchResults = searchResults.flatMap((result) =>
 				result.status === "fulfilled" ? result.value : [],
 			);
-			if (!successfulSearchResults.length)
-				throw new Error("Could not retrieve any search results");
+			const failedResults = searchResults.filter(
+				(result): result is PromiseRejectedResult =>
+					result.status === "rejected",
+			);
+
+			if (failedResults.length === searchResults.length) {
+				const failedReasons = [
+					...new Set(
+						failedResults.map((result) =>
+							result.reason instanceof Error
+								? result.reason.message
+								: String(result.reason),
+						),
+					),
+				].join("\n");
+
+				throw new Error(
+					`Could not retrieve any search results: ${failedReasons}`,
+				);
+			}
 
 			for (const result of searchResults) {
 				if (result.status === "rejected")

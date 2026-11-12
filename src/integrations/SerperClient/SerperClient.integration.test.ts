@@ -8,8 +8,15 @@ describe("SerperClient integration", () => {
 		if (!apiKey) throw new Error("SERPER_API_KEY is required");
 		const client = new SerperClient(apiKey);
 
-		const results = await client.search("Obama Foundation");
+		// Does not allow @SLD.com.
+		await expect(client.search("@obama.com")).rejects.toThrow();
 
-		expect(results.length).toBeGreaterThan(0);
+		// Allows @SLD and SLD.com independently.
+		expect((await client.search("@obama filetype:pdf")).length).toBeGreaterThan(
+			0,
+		);
+		expect(
+			(await client.search("obama.com filetype:pdf")).length,
+		).toBeGreaterThan(0);
 	});
 });

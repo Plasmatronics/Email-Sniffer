@@ -17,7 +17,6 @@ const responseLineRegex = /^(\d{3})([- ])(.*)$/;
 
 export class SMTPVerifier {
 	private readonly serviceName = "SMTPVerifier";
-
 	private readonly socketErrors = new WeakMap<Socket, Error>();
 
 	constructor(

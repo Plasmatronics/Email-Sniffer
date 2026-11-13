@@ -2,19 +2,26 @@ import { chromium } from "playwright-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import {
 	FetchResult,
+	FetchStrategy,
 	WebsiteFetcher,
 	WebsiteFetcherConfig,
 } from "../websiteFetcher.types";
-import { Browser, LaunchOptions } from "playwright";
+import { Browser, BrowserContext, LaunchOptions } from "playwright";
 import { logger } from "../../../infrastructure";
+import { BrowserFetchStrategy, HTTPFetchStrategy } from "../fetchingStrategies";
 
 export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 	private readonly serviceName = "PlaywrightWebsiteFetcher";
 
-	private constructor(private readonly browser: Browser) {}
+	private constructor(
+		private readonly browser: Browser,
+		private readonly context: BrowserContext,
+		private readonly fetchingStrategies: FetchStrategy[],
+	) {}
 
 	static async createFetcher(
 		options: LaunchOptions,
+		fetchingStrategies?: FetchStrategy[],
 	): Promise<PlaywrightWebsiteFetcher> {
 		try {
 			chromium.use(StealthPlugin());
@@ -22,8 +29,16 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 				...options,
 				headless: process.env.NODE_ENV === "production" ? true : false,
 			});
+			const context = await browser.newContext();
 
-			return new PlaywrightWebsiteFetcher(browser);
+			return new PlaywrightWebsiteFetcher(
+				browser,
+				context,
+				fetchingStrategies ?? [
+					new HTTPFetchStrategy(context),
+					new BrowserFetchStrategy(browser),
+				],
+			);
 		} catch (err: unknown) {
 			throw new Error(
 				`There was an error creating the fetcher: ${err instanceof Error ? err.message : "An unknown error has occurred."}`,
@@ -37,49 +52,37 @@ export class PlaywrightWebsiteFetcher implements WebsiteFetcher {
 		const childLogger = logger.child({ serviceName: this.serviceName, url });
 		childLogger.debug("Fetching website");
 
-		let page: Awaited<ReturnType<Browser["newPage"]>> | undefined;
-
 		try {
-			page = await this.browser.newPage();
-			const response = await page.goto(url, {
-				waitUntil: "domcontentloaded",
-				timeout: config.timeout,
-			});
-
-			if (!response || !response?.ok()) {
-				throw new Error(`HTTP ${response?.status()} for ${url}`);
-			}
-
-			const buffer = Buffer.from(await page.content(), "utf-8");
-			if (buffer.byteLength > config.maxContentLength) {
-				throw new Error("Content exceeds maximum length");
-			}
-
+			const fetchStrategy = this.delegateFetchingStrategy(url);
+			const result = await fetchStrategy.fetch(url, config);
 			childLogger.debug(
 				{
-					statusCode: response.status(),
-					contentLength: buffer.byteLength,
+					contentLength: result.data.byteLength,
 					durationMs: Math.round(Date.now() - start),
 				},
 				"Website fetched successfully",
 			);
-
-			return {
-				data: buffer,
-				contentType: await response.headerValue("content-type"),
-			};
+			return result;
 		} catch (err: unknown) {
 			childLogger.error(
 				{ err, durationMs: Date.now() - start },
 				"Website fetch failed",
 			);
 			throw err;
-		} finally {
-			if (page) await page.close();
 		}
 	}
 
+	private delegateFetchingStrategy(url: string): FetchStrategy {
+		const strategy = this.fetchingStrategies.find((candidate) =>
+			candidate.supports(url),
+		);
+		if (!strategy) throw new Error(`No fetch strategy supports ${url}`);
+
+		return strategy;
+	}
+
 	async close(): Promise<void> {
+		await this.context.close();
 		await this.browser.close();
 	}
 }

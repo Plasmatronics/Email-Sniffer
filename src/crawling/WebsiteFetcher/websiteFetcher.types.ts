@@ -11,3 +11,8 @@ export interface WebsiteFetcherConfig {
 export interface WebsiteFetcher {
 	fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult>;
 }
+
+export interface FetchStrategy {
+	supports(url: string): boolean;
+	fetch(url: string, config: WebsiteFetcherConfig): Promise<FetchResult>;
+}

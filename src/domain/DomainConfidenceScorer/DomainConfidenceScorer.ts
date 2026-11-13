@@ -1,11 +1,15 @@
-import { getDomainWithoutSuffix, getFullDomain } from "tldts";
+import { getFullDomain } from "tldts";
 import {
 	DomainConfidenceScorerConfig,
 	VerificationResult,
 	VerifiedDomainData,
 } from "./DomainConfidenceScorer.types";
 import { TRUSTED_PAGE_PATHS } from "./trustedPagePaths";
-import { getKeywordsFromUrl, getUrlWeightFromKeywords } from "../../utils";
+import {
+	getKeywordsFromUrl,
+	getSecondLevelDomain,
+	getUrlWeightFromKeywords,
+} from "../../utils";
 import { logger } from "../../infrastructure";
 import { Logger } from "pino";
 
@@ -135,10 +139,8 @@ export class DomainConfidenceScorer {
 			return 0;
 		}
 
-		const companyUrlSLD = this.extractSecondLevelDomain(companyUrlOriginal);
-		const unverifiedSLD = this.extractSecondLevelDomain(
-			unverifiedDomainOriginal,
-		);
+		const companyUrlSLD = getSecondLevelDomain(companyUrlOriginal);
+		const unverifiedSLD = getSecondLevelDomain(unverifiedDomainOriginal);
 
 		if (!companyUrlSLD || !unverifiedSLD) {
 			if (!companyUrlSLD)
@@ -212,13 +214,6 @@ export class DomainConfidenceScorer {
 		}
 
 		return (maxOverlap / longerStr.length) * 100;
-	}
-
-	private extractSecondLevelDomain(domain: string): string {
-		const parsedSLD = getDomainWithoutSuffix(domain);
-		if (!parsedSLD) return "";
-
-		return parsedSLD;
 	}
 
 	private normalizeUrlToDomain(url: string): string {

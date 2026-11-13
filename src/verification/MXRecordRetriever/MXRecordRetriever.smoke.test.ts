@@ -5,7 +5,7 @@ import {
 	NUM_RECORDS_DEFAULT,
 } from "./MXRecordRetriever.ts";
 
-describe("MXRecordRetriever integration", () => {
+describe("MXRecordRetriever smoke", () => {
 	test("resolves live MX records for a mail-enabled domain", async () => {
 		const retriever = new MXRecordRetriever();
 

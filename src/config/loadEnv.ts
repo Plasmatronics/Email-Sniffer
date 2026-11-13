@@ -1,4 +1,6 @@
-import { configDotenv } from "dotenv";
+/*
+Centrlized Place to load env variables and handle errors; dotenv already injected at bootstrapped root.
+*/
 
 export interface EnvConfig {
 	fromEmail: string;
@@ -8,11 +10,10 @@ export interface EnvConfig {
 	smokeTestFetchUrl: string;
 	logLevel: string;
 	nodeEnv: string;
+	smokeTestEmail: string;
 }
 
-export function loadEnv(path = "./.env"): Readonly<EnvConfig> {
-	configDotenv({ path });
-
+export function loadEnv(): Readonly<EnvConfig> {
 	const {
 		FROM_MAILBOX: fromEmail,
 		SMTP_EHLO_HOSTNAME: ehloHostName,
@@ -21,6 +22,7 @@ export function loadEnv(path = "./.env"): Readonly<EnvConfig> {
 		SMOKE_TEST_FETCH_URL: smokeTestFetchUrl,
 		LOG_LEVEL: logLevel,
 		NODE_ENV: nodeEnv,
+		SMOKE_TEST_EMAIL: smokeTestEmail,
 	} = process.env;
 
 	if (!fromEmail)
@@ -36,6 +38,8 @@ export function loadEnv(path = "./.env"): Readonly<EnvConfig> {
 	if (!logLevel)
 		throw new Error("Missing configuration variable for LOG_LEVEL");
 	if (!nodeEnv) throw new Error("Missing configuration variable for NODE_ENV");
+	if (!smokeTestEmail)
+		throw new Error("Missing configuration variable for SMOKE_TEST_EMAIL");
 
 	const serverPortNumber = Number(serverPort);
 	if (
@@ -54,5 +58,6 @@ export function loadEnv(path = "./.env"): Readonly<EnvConfig> {
 		smokeTestFetchUrl,
 		logLevel,
 		nodeEnv,
+		smokeTestEmail,
 	});
 }

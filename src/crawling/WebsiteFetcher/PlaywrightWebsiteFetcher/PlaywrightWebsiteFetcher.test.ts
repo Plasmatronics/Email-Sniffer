@@ -1,5 +1,5 @@
 import { chromium } from "playwright-extra";
-import type { Browser, Page, Response } from "playwright";
+import type { Browser, BrowserContext, Page, Response } from "playwright";
 import { describe, expect, test, vi } from "vitest";
 import { PlaywrightWebsiteFetcher } from "./PlaywrightWebsiteFetcher";
 
@@ -35,8 +35,26 @@ async function createFetcher(
 			.mockResolvedValue(overrides.content ?? "<body>content</body>"),
 		close: vi.fn().mockResolvedValue(undefined),
 	} as unknown as Page;
+	const context = {
+		request: {
+			get: vi.fn().mockResolvedValue(
+				overrides.response !== undefined
+					? overrides.response
+					: {
+							ok: () => true,
+							status: () => 200,
+							headers: () => ({
+								"content-type": "text/html; charset=utf-8",
+							}),
+							body: vi.fn().mockResolvedValue(Buffer.from("http content")),
+						},
+			),
+		},
+		close: vi.fn().mockResolvedValue(undefined),
+	} as unknown as BrowserContext;
 	const browser = {
 		newPage: vi.fn().mockResolvedValue(page),
+		newContext: vi.fn().mockResolvedValue(context),
 		close: vi.fn().mockResolvedValue(undefined),
 	} as unknown as Browser;
 
@@ -45,6 +63,7 @@ async function createFetcher(
 	return {
 		fetcher: await PlaywrightWebsiteFetcher.createFetcher({}),
 		browser,
+		context,
 		page,
 	};
 }
@@ -65,6 +84,26 @@ describe("PlaywrightWebsiteFetcher", () => {
 			waitUntil: "domcontentloaded",
 			timeout: 5_000,
 		});
+	});
+
+	test("fetches raw response bytes for non-HTML content", async () => {
+		const pdf = Buffer.from("%PDF-1.7");
+		const { fetcher, page } = await createFetcher({
+			response: {
+				ok: () => true,
+				status: () => 200,
+				headers: () => ({ "content-type": "application/pdf" }),
+				body: vi.fn().mockResolvedValue(pdf),
+			},
+		});
+
+		await expect(
+			fetcher.fetch("https://example.com/report.pdf", config),
+		).resolves.toEqual({
+			data: pdf,
+			contentType: "application/pdf",
+		});
+		expect(page.content).not.toHaveBeenCalled();
 	});
 
 	test("closes the page after a successful fetch", async () => {

@@ -127,6 +127,8 @@ export class SMTPVerifier {
 			const rcptRes = await this.sendCommand(socket, `RCPT TO:<${email}>`);
 			return this.parseSMTPRes(rcptRes);
 		} catch (err: unknown) {
+			childLogger.error(err, "An error Occurred during SMTP Verification");
+
 			return {
 				status: "error",
 				message:
@@ -322,6 +324,7 @@ export class SMTPVerifier {
 			};
 
 			const onError = (error: Error) => {
+				console.log({ error });
 				cleanup();
 				reject(
 					new Error("An error occurred during connection opening", {

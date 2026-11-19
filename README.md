@@ -31,6 +31,7 @@ Create a .env file and transfer the mocked variables from the example .env to yo
 | `SMOKE_TEST_FETCH_URL` | Url for smoke test purposes during fetching.         |
 | `LOG_LEVEL`            | Minimum log level needed to be met to produce log    |
 | `NODE_ENV`             | Environment setting                                  |
+| `SMOKE_TEST_EMAIL`     | Email for SMTPVerifier Smoke Testing                 |
 
 
 ## Run the server
@@ -89,6 +90,7 @@ The endpoint returns `200` when all vital integrations are healthy and `503` oth
 - `src/processing` — Text chunking, document clamping, and email extraction
 - `src/search` — Web search functionality
 - `src/shared` — Shared email-pattern definitions
+- `src/config` — Scripts or vars used for configuration
 - `src/types` — Shared TypeScript types
 - `src/utils` — Environment loading and reusable URL/email utilities
 - `src/verification` — SMTP and MX-record verification

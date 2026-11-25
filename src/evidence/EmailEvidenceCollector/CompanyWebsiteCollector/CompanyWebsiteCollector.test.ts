@@ -70,8 +70,13 @@ describe("CompanyWebsiteCollector", () => {
 			{
 				email: "alice@example.com",
 				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
 			},
-			{ email: "privacy@external.com", pattern: EmailPattern.Unknown },
+			{
+				email: "privacy@external.com",
+				pattern: EmailPattern.Unknown,
+				patternEligible: false,
+			},
 		];
 		crawl.mockResolvedValue({ [SOURCE_URL]: inferredResults });
 		validateDomain.mockImplementation((_source, domain) =>
@@ -88,6 +93,7 @@ describe("CompanyWebsiteCollector", () => {
 				pattern: EmailPattern.FirstNameDotLastName,
 				source: SOURCE_URL,
 				domainConfidence: 100,
+				patternEligible: true,
 			},
 		]);
 

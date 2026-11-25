@@ -1,4 +1,4 @@
-import { EmailPattern } from "../../shared";
+import { EmailPattern, PatternInference } from "../../shared";
 
 export abstract class EmailEvidenceCollector<
 	Input,
@@ -13,9 +13,7 @@ export abstract class EmailEvidenceCollector<
 	abstract collect(input: Input): Promise<EmailEvidence[]>;
 }
 
-export interface EmailEvidence {
-	email: string;
-	pattern: EmailPattern;
+export interface EmailEvidence extends PatternInference {
 	source: string;
 	domainConfidence: number;
 }

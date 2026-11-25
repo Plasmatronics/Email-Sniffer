@@ -57,7 +57,7 @@ function createCollector() {
 }
 
 function passingInference(email = "alice@example.com"): PatternInference[] {
-	return [{ email, pattern: EmailPattern.FirstName }];
+	return [{ email, pattern: EmailPattern.FirstName, patternEligible: true }];
 }
 
 function passValidation(domain: string) {
@@ -99,6 +99,7 @@ describe("PdfSearchCollector", () => {
 				pattern: EmailPattern.FirstName,
 				source: SEARCH_URL,
 				domainConfidence: 100,
+				patternEligible: true,
 			},
 		]);
 
@@ -181,6 +182,7 @@ describe("PdfSearchCollector", () => {
 				pattern: EmailPattern.FirstName,
 				source: SEARCH_URL,
 				domainConfidence: 100,
+				patternEligible: true,
 			},
 		]);
 
@@ -194,10 +196,15 @@ describe("PdfSearchCollector", () => {
 		const { collector, fetchResults, crawl, validateDomain } =
 			createCollector();
 		const inferredResults: PatternInference[] = [
-			{ email: "invalid@external.com", pattern: EmailPattern.Unknown },
+			{
+				email: "invalid@external.com",
+				pattern: EmailPattern.Unknown,
+				patternEligible: true,
+			},
 			{
 				email: "alice@example.com",
 				pattern: EmailPattern.FirstName,
+				patternEligible: true,
 			},
 		];
 		fetchResults.mockResolvedValue([searchResult]);
@@ -216,6 +223,7 @@ describe("PdfSearchCollector", () => {
 				pattern: EmailPattern.FirstName,
 				source: SEARCH_URL,
 				domainConfidence: 100,
+				patternEligible: true,
 			},
 		]);
 	});

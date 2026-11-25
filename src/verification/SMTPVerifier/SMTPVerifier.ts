@@ -13,6 +13,8 @@ export type SMTPVerificationResult = {
 const MAX_RESPONSE_LENGTH = 10_000;
 const DEFAULT_TIMEOUT = 15_000;
 const GLOBAL_TIMEOUT = 45_000;
+const SMTP_PORT = 25;
+
 const responseLineRegex = /^(\d{3})([- ])(.*)$/;
 
 export class SMTPVerifier {
@@ -89,7 +91,9 @@ export class SMTPVerifier {
 	): Promise<SMTPVerificationResult> {
 		const controller = new AbortController();
 		const globalTimer = setTimeout(() => {
-			controller.abort(new Error("SMTP verification exceeded 45 seconds"));
+			controller.abort(
+				new Error(`SMTP verification exceeded ${GLOBAL_TIMEOUT} ms`),
+			);
 		}, GLOBAL_TIMEOUT);
 
 		let socket: Socket | undefined = undefined;
@@ -300,7 +304,7 @@ export class SMTPVerifier {
 				timeout: DEFAULT_TIMEOUT,
 				...(this.connectionConfig ?? {}),
 				host: mxDestinationHost,
-				port: 25,
+				port: SMTP_PORT,
 				signal: abortSignal,
 			});
 

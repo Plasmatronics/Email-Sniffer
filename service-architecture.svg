@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1250" viewBox="0 0 1800 1250">
+  <defs>
+    <marker id="arrow" markerWidth="10" markerHeight="10" refX="9" refY="3" orient="auto"><path d="M0,0 L10,3 L0,6 Z" fill="#64748b"/></marker>
+    <style>
+      .title{font:700 32px Arial;fill:#0f172a}.label{font:700 19px Arial;fill:#0f172a}.small{font:16px Arial;fill:#475569}.group{font:700 22px Arial;fill:#1e293b}.box{stroke:#64748b;stroke-width:2;rx:14}.line{stroke:#64748b;stroke-width:3;fill:none;marker-end:url(#arrow)}.dash{stroke-dasharray:9 8}
+    </style>
+  </defs>
+  <rect width="1800" height="1250" fill="#f8fafc"/>
+  <text x="900" y="55" text-anchor="middle" class="title">Email Sniffer - Service Architecture</text>
+  <text x="900" y="88" text-anchor="middle" class="small">Flow of an email inference request</text>
+
+  <rect x="50" y="125" width="1700" height="170" fill="#eff6ff" stroke="#93c5fd" stroke-width="2" rx="20"/>
+  <text x="75" y="158" class="group">Entry and orchestration</text>
+  <rect x="90" y="190" width="210" height="70" fill="#dbeafe" class="box"/><text x="195" y="218" text-anchor="middle" class="label">Client</text><text x="195" y="244" text-anchor="middle" class="small">name + company URL</text>
+  <rect x="390" y="190" width="250" height="70" fill="#dbeafe" class="box"/><text x="515" y="218" text-anchor="middle" class="label">Express API</text><text x="515" y="244" text-anchor="middle" class="small">POST /email-inferences</text>
+  <rect x="730" y="180" width="360" height="90" fill="#ede9fe" class="box"/><text x="910" y="215" text-anchor="middle" class="label">EmailGenerator</text><text x="910" y="242" text-anchor="middle" class="small">orchestrates inference workflow</text>
+  <rect x="1180" y="190" width="240" height="70" fill="#e2e8f0" class="box"/><text x="1300" y="218" text-anchor="middle" class="label">URL/domain utils</text><text x="1300" y="244" text-anchor="middle" class="small">normalize and extract</text>
+  <rect x="1500" y="190" width="190" height="70" fill="#e2e8f0" class="box"/><text x="1595" y="218" text-anchor="middle" class="label">Config + logging</text><text x="1595" y="244" text-anchor="middle" class="small">shared support</text>
+  <path d="M300 225H390M640 225H730M1090 225H1180" class="line"/>
+
+  <rect x="50" y="335" width="520" height="560" fill="#f0fdf4" stroke="#86efac" stroke-width="2" rx="20"/>
+  <text x="75" y="370" class="group">1. Evidence collection</text>
+  <rect x="90" y="410" width="440" height="72" fill="#dcfce7" class="box"/><text x="310" y="440" text-anchor="middle" class="label">CompanyWebsiteCollector</text><text x="310" y="466" text-anchor="middle" class="small">collect company-site evidence</text>
+  <rect x="90" y="520" width="440" height="72" fill="#dcfce7" class="box"/><text x="310" y="550" text-anchor="middle" class="label">PdfSearchCollector</text><text x="310" y="576" text-anchor="middle" class="small">collect PDF and contact evidence</text>
+  <rect x="90" y="630" width="440" height="72" fill="#dcfce7" class="box"/><text x="310" y="660" text-anchor="middle" class="label">WebsiteEmailCrawler + WebSearcher</text><text x="310" y="686" text-anchor="middle" class="small">prioritize pages and build queries</text>
+  <rect x="90" y="740" width="440" height="72" fill="#fef3c7" class="box"/><text x="310" y="770" text-anchor="middle" class="label">Fetcher, parsers + extractors</text><text x="310" y="796" text-anchor="middle" class="small">fetch content, find emails, infer formats</text>
+  <text x="90" y="855" class="small">HTTP/browser strategies - HTML/PDF parsing - TextChunker</text>
+  <path d="M310 482V520M310 592V630M310 702V740" class="line"/>
+
+  <rect x="640" y="335" width="520" height="560" fill="#fff7ed" stroke="#fdba74" stroke-width="2" rx="20"/>
+  <text x="665" y="370" class="group">2. Verification</text>
+  <rect x="680" y="410" width="440" height="72" fill="#fef3c7" class="box"/><text x="900" y="440" text-anchor="middle" class="label">DomainConfidenceScorer</text><text x="900" y="466" text-anchor="middle" class="small">validate evidence domains</text>
+  <rect x="680" y="540" width="440" height="72" fill="#fee2e2" class="box"/><text x="900" y="570" text-anchor="middle" class="label">MXRecordRetriever</text><text x="900" y="596" text-anchor="middle" class="small">find mail servers</text>
+  <rect x="680" y="670" width="440" height="72" fill="#fee2e2" class="box"/><text x="900" y="700" text-anchor="middle" class="label">SMTPVerifier</text><text x="900" y="726" text-anchor="middle" class="small">verify mailbox and catch-all behavior</text>
+  <text x="680" y="855" class="small">Evidence is checked before it enters inference.</text>
+  <path d="M900 482V540M900 612V670" class="line"/>
+
+  <rect x="1230" y="335" width="520" height="560" fill="#f5f3ff" stroke="#c4b5fd" stroke-width="2" rx="20"/>
+  <text x="1255" y="370" class="group">3. Inference</text>
+  <rect x="1270" y="410" width="440" height="72" fill="#ede9fe" class="box"/><text x="1490" y="440" text-anchor="middle" class="label">Result aggregator</text><text x="1490" y="466" text-anchor="middle" class="small">merge domains and patterns</text>
+  <rect x="1270" y="560" width="440" height="72" fill="#ede9fe" class="box"/><text x="1490" y="590" text-anchor="middle" class="label">InferredEmailConfidenceScorer</text><text x="1490" y="616" text-anchor="middle" class="small">score domain, SMTP, and pattern evidence</text>
+  <rect x="1270" y="720" width="440" height="72" fill="#dbeafe" class="box"/><text x="1490" y="750" text-anchor="middle" class="label">Final inference result</text><text x="1490" y="776" text-anchor="middle" class="small">highest-confidence email or failure reason</text>
+  <path d="M1490 482V560M1490 632V720" class="line"/>
+
+  <path d="M570 610H640M1160 610H1230" class="line"/>
+  <text x="605" y="596" text-anchor="middle" class="small">evidence</text><text x="1195" y="596" text-anchor="middle" class="small">verified signals</text>
+
+  <rect x="50" y="965" width="1700" height="180" fill="#ffffff" stroke="#cbd5e1" stroke-width="2" rx="20"/>
+  <text x="75" y="1000" class="group">External systems</text>
+  <rect x="110" y="1025" width="300" height="80" fill="#f3f4f6" class="box"/><text x="260" y="1055" text-anchor="middle" class="label">Serper API</text><text x="260" y="1081" text-anchor="middle" class="small">web search results</text>
+  <rect x="550" y="1025" width="300" height="80" fill="#f3f4f6" class="box"/><text x="700" y="1055" text-anchor="middle" class="label">Company websites</text><text x="700" y="1081" text-anchor="middle" class="small">HTML and PDF content</text>
+  <rect x="990" y="1025" width="300" height="80" fill="#f3f4f6" class="box"/><text x="1140" y="1055" text-anchor="middle" class="label">DNS/MX</text><text x="1140" y="1081" text-anchor="middle" class="small">mail-server records</text>
+  <rect x="1430" y="1025" width="240" height="80" fill="#f3f4f6" class="box"/><text x="1550" y="1055" text-anchor="middle" class="label">SMTP servers</text><text x="1550" y="1081" text-anchor="middle" class="small">mailbox responses</text>
+  <path d="M220 812V930H260V1025M400 812V930H700V1025M900 742V930H1140V1025M900 742V930H1550V1025" class="line dash"/>
+
+  <rect x="50" y="1180" width="1700" height="45" fill="#eff6ff" rx="12"/>
+  <text x="900" y="1209" text-anchor="middle" class="small">Health check: GET /health - SerperClient connectivity check - 200 healthy or 503 unhealthy</text>
+</svg>

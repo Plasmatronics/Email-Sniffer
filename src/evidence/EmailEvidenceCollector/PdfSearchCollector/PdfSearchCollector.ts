@@ -83,7 +83,9 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 				const emailEvidenceArr: EmailEvidence[] = [];
 				if (!(res.link in urlToInferenceMap)) return emailEvidenceArr;
 
-				for (const { email, pattern } of urlToInferenceMap[res.link]) {
+				for (const { email, pattern, patternEligible } of urlToInferenceMap[
+					res.link
+				]) {
 					const domain = extractDomain(email);
 
 					const validationResults =
@@ -100,6 +102,7 @@ export class PdfSearchCollector extends EmailEvidenceCollector<
 						pattern,
 						source: res.link,
 						domainConfidence: validationResults.confidence,
+						patternEligible,
 					});
 				}
 

@@ -143,6 +143,7 @@ describe("EmailGenerator", () => {
 				{
 					email: "alice.smith@example.com",
 					pattern: EmailPattern.FirstNameDotLastName,
+					patternEligible: true,
 				},
 			],
 		});
@@ -173,10 +174,12 @@ describe("EmailGenerator", () => {
 				{
 					email: "alice.smith@example2.com",
 					pattern: EmailPattern.FirstNameDotLastName,
+					patternEligible: true,
 				},
 				{
 					email: "alice_smith@example2.com",
 					pattern: EmailPattern.FirstNameUnderscoreLastName,
+					patternEligible: true,
 				},
 			],
 		});
@@ -200,13 +203,22 @@ describe("EmailGenerator", () => {
 		]);
 		vi.spyOn(websiteEmailCrawler, "crawl").mockResolvedValue({
 			[`${COMPANY_URL}/privacy`]: [
-				{ email: "privacy@example.com", pattern: EmailPattern.Unknown },
-				{ email: "privacy2@example.com", pattern: EmailPattern.Unknown },
+				{
+					email: "privacy@example.com",
+					pattern: EmailPattern.Unknown,
+					patternEligible: false,
+				},
+				{
+					email: "privacy2@example.com",
+					pattern: EmailPattern.Unknown,
+					patternEligible: false,
+				},
 			],
 			[`${COMPANY_URL}/contact`]: [
 				{
 					email: "alice.smith@example.com",
 					pattern: EmailPattern.FirstNameDotLastName,
+					patternEligible: true,
 				},
 			],
 		});

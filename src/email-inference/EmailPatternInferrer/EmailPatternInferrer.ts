@@ -1,4 +1,3 @@
-import z from "zod";
 import {
 	EmailPattern,
 	generateEmailLocalPartMap,
@@ -7,6 +6,7 @@ import {
 import { ExtractedEmail } from "../../processing/EmailExtractor";
 import { TextChunker } from "../../processing/TextChunker";
 import { logger } from "../../infrastructure";
+import { extractLocalPart } from "../../utils";
 
 export class EmailPatternInferrer {
 	private readonly serviceName = "EmailPatternInferrer";
@@ -46,17 +46,20 @@ export class EmailPatternInferrer {
 		emailExtraction: ExtractedEmail,
 		chunkedDocument: string[],
 	): PatternInference | undefined {
-		const email = emailExtraction.email;
-		const emailLocalPart = this.getLocalEmailPart(email);
+		const { email, wordIndex, patternEligible } = emailExtraction;
+		const emailLocalPart = extractLocalPart(email);
 		if (!emailLocalPart) return undefined;
+		if (!patternEligible) {
+			return { pattern: EmailPattern.Unknown, email, patternEligible: false };
+		}
 
 		const n = chunkedDocument.length;
 
-		let backwardL = Math.max(0, emailExtraction.wordIndex - 3);
-		let backwardR = emailExtraction.wordIndex - 1;
+		let backwardL = Math.max(0, wordIndex - 3);
+		let backwardR = wordIndex - 1;
 
-		let forwardL = emailExtraction.wordIndex + 1;
-		let forwardR = Math.min(emailExtraction.wordIndex + 3, n - 1);
+		let forwardL = wordIndex + 1;
+		let forwardR = Math.min(wordIndex + 3, n - 1);
 
 		while (backwardL >= 0 || forwardR < n) {
 			if (backwardL >= 0) {
@@ -68,7 +71,7 @@ export class EmailPatternInferrer {
 						lastName,
 						emailLocalPart,
 					);
-					if (pattern) return { pattern, email };
+					if (pattern) return { pattern, email, patternEligible };
 				}
 
 				backwardL--;
@@ -84,7 +87,7 @@ export class EmailPatternInferrer {
 						lastName,
 						emailLocalPart,
 					);
-					if (pattern) return { pattern, email };
+					if (pattern) return { pattern, email, patternEligible };
 				}
 
 				forwardL++;
@@ -92,7 +95,7 @@ export class EmailPatternInferrer {
 			}
 		}
 
-		return { pattern: EmailPattern.Unknown, email };
+		return { pattern: EmailPattern.Unknown, email, patternEligible: false };
 	}
 
 	private getNameCandidates(words: string[]): [string, string][] {
@@ -155,12 +158,5 @@ export class EmailPatternInferrer {
 		}
 
 		return undefined;
-	}
-
-	private getLocalEmailPart(email: string): string {
-		const safeEmail = z.email().safeParse(email);
-		if (!safeEmail.success) return "";
-
-		return safeEmail.data.split("@")[0];
 	}
 }

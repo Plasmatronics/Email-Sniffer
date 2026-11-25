@@ -79,6 +79,7 @@ describe("WebsiteEmailCrawler", () => {
 				{
 					email: "alice.brown@example.com",
 					pattern: EmailPattern.FirstNameDotLastName,
+					patternEligible: true,
 				},
 			],
 		});
@@ -93,7 +94,11 @@ describe("WebsiteEmailCrawler", () => {
 
 		await expect(crawler.crawl(SEED_URL, crawlConfig(1))).resolves.toEqual({
 			[SEED_URL]: [
-				{ email: "privacy@example.com", pattern: EmailPattern.Unknown },
+				{
+					email: "privacy@example.com",
+					pattern: EmailPattern.Unknown,
+					patternEligible: false,
+				},
 			],
 		});
 	});

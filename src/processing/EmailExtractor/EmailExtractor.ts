@@ -1,5 +1,7 @@
+import { extractLocalPart } from "../../utils";
 import { DocumentClamper } from "../DocumentClamper";
 import { TextChunker } from "../TextChunker";
+import { blacklistedEmailsSet } from "./blacklistedEmails";
 
 export interface EmailExtractionStrategy {
 	extractEmails(parsable: string): string[];
@@ -12,6 +14,7 @@ export interface EmailExtractionConfig {
 export interface ExtractedEmail {
 	email: string;
 	wordIndex: number;
+	patternEligible: boolean;
 }
 
 const EMAIL_REGEX = /[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}/gi;
@@ -44,7 +47,13 @@ export class EmailExtractor {
 
 				if (!seenEmails.has(email)) {
 					seenEmails.add(email);
-					results.push({ email, wordIndex });
+
+					const localPart = extractLocalPart(email);
+					results.push({
+						email,
+						wordIndex,
+						patternEligible: !blacklistedEmailsSet.has(localPart),
+					});
 				}
 			}
 

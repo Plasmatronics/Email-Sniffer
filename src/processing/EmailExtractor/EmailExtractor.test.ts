@@ -140,7 +140,9 @@ describe("EmailExtractor", () => {
 				"Contact jane@example.com for help",
 			);
 
-			expect(matches).toEqual([{ email: "jane@example.com", wordIndex: 1 }]);
+			expect(matches).toEqual([
+				{ email: "jane@example.com", wordIndex: 1, patternEligible: true },
+			]);
 		});
 
 		test("returns multiple emails with their word indexes", () => {
@@ -151,8 +153,8 @@ describe("EmailExtractor", () => {
 			);
 
 			expect(matches).toEqual([
-				{ email: "first@example.com", wordIndex: 1 },
-				{ email: "second@example.org", wordIndex: 3 },
+				{ email: "first@example.com", wordIndex: 1, patternEligible: true },
+				{ email: "second@example.org", wordIndex: 3, patternEligible: true },
 			]);
 		});
 
@@ -164,8 +166,8 @@ describe("EmailExtractor", () => {
 			);
 
 			expect(matches).toEqual([
-				{ email: "first@example.com", wordIndex: 0 },
-				{ email: "second@example.org", wordIndex: 0 },
+				{ email: "first@example.com", wordIndex: 0, patternEligible: true },
+				{ email: "second@example.org", wordIndex: 0, patternEligible: true },
 			]);
 		});
 
@@ -176,7 +178,9 @@ describe("EmailExtractor", () => {
 				"Reach <jane@example.com> today",
 			);
 
-			expect(matches).toEqual([{ email: "jane@example.com", wordIndex: 1 }]);
+			expect(matches).toEqual([
+				{ email: "jane@example.com", wordIndex: 1, patternEligible: true },
+			]);
 		});
 
 		test("returns only the first occurrence of a duplicate email", () => {
@@ -186,7 +190,22 @@ describe("EmailExtractor", () => {
 				"jane@example.com then jane@example.com",
 			);
 
-			expect(matches).toEqual([{ email: "jane@example.com", wordIndex: 0 }]);
+			expect(matches).toEqual([
+				{ email: "jane@example.com", wordIndex: 0, patternEligible: true },
+			]);
+		});
+
+		test("marks role-based mailboxes as ineligible for pattern inference", () => {
+			const extractor = createExtractor();
+
+			const matches = extractor.extractEmailMatches(
+				"Contact alice@example.com or privacy@example.com",
+			);
+
+			expect(matches).toEqual([
+				{ email: "alice@example.com", wordIndex: 1, patternEligible: true },
+				{ email: "privacy@example.com", wordIndex: 3, patternEligible: false },
+			]);
 		});
 
 		test("returns no matches when the text contains no emails", () => {
@@ -214,7 +233,9 @@ describe("EmailExtractor", () => {
 			extractor.extractEmailMatches(text);
 			const matches = extractor.extractEmailMatches(text);
 
-			expect(matches).toEqual([{ email: "jane@example.com", wordIndex: 1 }]);
+			expect(matches).toEqual([
+				{ email: "jane@example.com", wordIndex: 1, patternEligible: true },
+			]);
 		});
 	});
 });

@@ -69,7 +69,11 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 		for (const [sourceUrl, emailAndInferredPatternArr] of Object.entries(
 			crawlResultsMap,
 		)) {
-			for (const { email, pattern } of emailAndInferredPatternArr) {
+			for (const {
+				email,
+				pattern,
+				patternEligible,
+			} of emailAndInferredPatternArr) {
 				const domain = extractDomain(email);
 
 				const validationResults =
@@ -86,6 +90,7 @@ export class CompanyWebsiteCollector extends EmailEvidenceCollector<
 					pattern,
 					source: sourceUrl,
 					domainConfidence: validationResults.confidence,
+					patternEligible,
 				});
 			}
 		}

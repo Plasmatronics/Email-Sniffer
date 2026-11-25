@@ -54,4 +54,5 @@ export const generateEmailLocalPartMap: Record<
 export interface PatternInference {
 	email: string;
 	pattern: EmailPattern;
+	patternEligible: boolean;
 }

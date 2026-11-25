@@ -82,8 +82,12 @@ describe("EmailPatternInferrer", () => {
 		return new EmailPatternInferrer(new TextChunker());
 	}
 
-	function createExtraction(email: string, wordIndex: number): ExtractedEmail {
-		return { email, wordIndex };
+	function createExtraction(
+		email: string,
+		wordIndex: number,
+		patternEligible = true,
+	): ExtractedEmail {
+		return { email, wordIndex, patternEligible };
 	}
 
 	test.each(PATTERN_CASES)(
@@ -97,7 +101,7 @@ describe("EmailPatternInferrer", () => {
 				`Alice Brown ${email}`,
 			);
 
-			expect(inferences).toEqual([{ email, pattern }]);
+			expect(inferences).toEqual([{ email, pattern, patternEligible: true }]);
 		},
 	);
 
@@ -111,7 +115,11 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email, pattern: EmailPattern.FirstNameDotLastName },
+			{
+				email,
+				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 
@@ -125,7 +133,11 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email, pattern: EmailPattern.FirstNameDotLastName },
+			{
+				email,
+				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 
@@ -139,7 +151,11 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email, pattern: EmailPattern.FirstNameDotLastName },
+			{
+				email,
+				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 
@@ -153,7 +169,11 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email, pattern: EmailPattern.FirstNameDotLastName },
+			{
+				email,
+				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 
@@ -168,8 +188,16 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email: firstEmail, pattern: EmailPattern.FirstNameDotLastName },
-			{ email: secondEmail, pattern: EmailPattern.FirstNameUnderscoreLastName },
+			{
+				email: firstEmail,
+				pattern: EmailPattern.FirstNameDotLastName,
+				patternEligible: true,
+			},
+			{
+				email: secondEmail,
+				pattern: EmailPattern.FirstNameUnderscoreLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 
@@ -193,7 +221,23 @@ describe("EmailPatternInferrer", () => {
 			`Alice Brown ${email}`,
 		);
 
-		expect(inferences).toEqual([{ email, pattern: EmailPattern.Unknown }]);
+		expect(inferences).toEqual([
+			{ email, pattern: EmailPattern.Unknown, patternEligible: false },
+		]);
+	});
+
+	test("does not infer a pattern for ineligible email addresses", () => {
+		const inferrer = createInferrer();
+		const email = "privacy@example.com";
+
+		const inferences = inferrer.inferEmailPatterns(
+			[createExtraction(email, 2, false)],
+			`Alice Brown ${email}`,
+		);
+
+		expect(inferences).toEqual([
+			{ email, pattern: EmailPattern.Unknown, patternEligible: false },
+		]);
 	});
 
 	test("returns no inferences when no emails were extracted", () => {
@@ -217,7 +261,11 @@ describe("EmailPatternInferrer", () => {
 		);
 
 		expect(inferences).toEqual([
-			{ email, pattern: EmailPattern.FirstInitialLastName },
+			{
+				email,
+				pattern: EmailPattern.FirstInitialLastName,
+				patternEligible: true,
+			},
 		]);
 	});
 });

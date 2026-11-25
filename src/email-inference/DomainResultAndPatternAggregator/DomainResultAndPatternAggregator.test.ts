@@ -10,6 +10,7 @@ function createEvidence(
 	return {
 		email: values.email,
 		pattern: values.pattern ?? EmailPattern.FirstName,
+		patternEligible: values.patternEligible ?? true,
 		source: values.source ?? "https://example.com/contact",
 		domainConfidence: values.domainConfidence ?? 50,
 	};
@@ -201,6 +202,33 @@ describe("DomainResultAndPatternAggregator", () => {
 		});
 		//@ts-expect-error Checking Unknown for error verification purposes
 		expect(result.patternFreq.get(EmailPattern.Unknown)).toBeUndefined();
+		expect(result.patternFreq.get(EmailPattern.FirstName)).toBe(1);
+	});
+
+	test("counts ineligible evidence for the domain but not pattern frequency", async () => {
+		const mxRecordRetriever = new MXRecordRetriever();
+		vi.spyOn(mxRecordRetriever, "findMXRecords").mockResolvedValue([
+			"mx.example.com",
+		]);
+		const aggregator = new DomainResultAndPatternAggregator(mxRecordRetriever);
+
+		const result = await aggregator.aggregateEvidence([
+			createEvidence({
+				email: "privacy@example.com",
+				pattern: EmailPattern.FirstName,
+				patternEligible: false,
+			}),
+			createEvidence({
+				email: "alice@example.com",
+				pattern: EmailPattern.FirstName,
+				patternEligible: true,
+			}),
+		]);
+
+		expect(result.domainResults[0]).toMatchObject({
+			domain: "example.com",
+			count: 2,
+		});
 		expect(result.patternFreq.get(EmailPattern.FirstName)).toBe(1);
 	});
 

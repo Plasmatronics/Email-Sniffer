@@ -219,7 +219,13 @@ export class DomainResultAndPatternAggregator {
 	): Record<string, EmailEvidenceWithCount> {
 		const domainMap: Record<string, EmailEvidenceWithCount> = {};
 
-		for (const { email, pattern, source, domainConfidence } of evidence) {
+		for (const {
+			email,
+			pattern,
+			source,
+			domainConfidence,
+			patternEligible,
+		} of evidence) {
 			const domain = extractDomain(email);
 			if (!domain) continue;
 
@@ -234,6 +240,7 @@ export class DomainResultAndPatternAggregator {
 					source,
 					domainConfidence,
 					count: existingDomainRecord?.count ?? 0,
+					patternEligible,
 				};
 			}
 
@@ -252,9 +259,9 @@ export class DomainResultAndPatternAggregator {
 				.map((pattern) => [pattern, 0]),
 		);
 
-		for (const { email, pattern } of evidence) {
+		for (const { email, pattern, patternEligible } of evidence) {
 			const domain = extractDomain(email);
-			if (!domain) continue;
+			if (!domain || !patternEligible) continue;
 
 			if (pattern !== EmailPattern.Unknown)
 				patternFreq.set(pattern, (patternFreq.get(pattern) ?? 0) + 1);

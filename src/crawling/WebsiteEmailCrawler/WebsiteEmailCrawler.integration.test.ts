@@ -75,11 +75,23 @@ describe("WebsiteEmailCrawler integration", () => {
 
 		expect(res).toEqual({
 			[`${baseUrl}/`]: [
-				{ email: "root@example.com", pattern: EmailPattern.Unknown },
-				{ pattern: "unknown", email: "linked@example.com" },
+				{
+					email: "root@example.com",
+					pattern: EmailPattern.Unknown,
+					patternEligible: false,
+				},
+				{
+					pattern: "unknown",
+					email: "linked@example.com",
+					patternEligible: false,
+				},
 			],
 			[`${baseUrl}/contact`]: [
-				{ email: "contact@example.com", pattern: EmailPattern.Unknown },
+				{
+					email: "contact@example.com",
+					pattern: EmailPattern.Unknown,
+					patternEligible: false,
+				},
 			],
 		});
 	});

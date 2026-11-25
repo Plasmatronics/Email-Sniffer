@@ -20,7 +20,6 @@ describe("SMTPVerifier smoke tests", () => {
 			recipient,
 			mxRecords,
 		);
-		console.log({ result });
 
 		expect(["accepted", "rejected", "unknown"]).toContain(result.status);
 	}, 20_000);

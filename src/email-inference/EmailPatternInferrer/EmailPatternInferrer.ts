@@ -1,4 +1,3 @@
-import z from "zod";
 import {
 	EmailPattern,
 	generateEmailLocalPartMap,
@@ -7,6 +6,7 @@ import {
 import { ExtractedEmail } from "../../processing/EmailExtractor";
 import { TextChunker } from "../../processing/TextChunker";
 import { logger } from "../../infrastructure";
+import { extractLocalPart } from "../../utils";
 
 export class EmailPatternInferrer {
 	private readonly serviceName = "EmailPatternInferrer";
@@ -47,7 +47,7 @@ export class EmailPatternInferrer {
 		chunkedDocument: string[],
 	): PatternInference | undefined {
 		const email = emailExtraction.email;
-		const emailLocalPart = this.getLocalEmailPart(email);
+		const emailLocalPart = extractLocalPart(email);
 		if (!emailLocalPart) return undefined;
 
 		const n = chunkedDocument.length;
@@ -155,12 +155,5 @@ export class EmailPatternInferrer {
 		}
 
 		return undefined;
-	}
-
-	private getLocalEmailPart(email: string): string {
-		const safeEmail = z.email().safeParse(email);
-		if (!safeEmail.success) return "";
-
-		return safeEmail.data.split("@")[0];
 	}
 }

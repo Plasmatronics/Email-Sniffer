@@ -13,3 +13,9 @@ export const extractDomain = (emailOrUrl: string): string => {
 
 	return getDomain(emailOrUrl)?.toLowerCase() ?? "";
 };
+
+export const extractLocalPart = (email: string): string => {
+	if (!validateEmail(email)) return "";
+
+	return email.slice(0, email.indexOf("@")).toLowerCase();
+};

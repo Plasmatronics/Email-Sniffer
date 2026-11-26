@@ -78,7 +78,7 @@ export class EmailGenerator {
 					),
 				]);
 
-			await this.enrichCheckAllStatus(aggregatedResults.domainResults);
+			await this.enrichCatchAllStatus(aggregatedResults.domainResults);
 
 			const { topDomains, topPatterns } = this.getTopDomainsAndPatterns(
 				aggregatedResults.domainResults,
@@ -163,7 +163,7 @@ export class EmailGenerator {
 		}
 	}
 
-	private async enrichCheckAllStatus(domains: DomainResults[]): Promise<void> {
+	private async enrichCatchAllStatus(domains: DomainResults[]): Promise<void> {
 		await Promise.all(
 			domains.map(async (domain) => {
 				const smtpVerification = await this.dependencies.smtpVerifier.verify(
